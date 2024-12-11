@@ -20,7 +20,7 @@ from narf import ioutils
 from utilities import logging
 from utilities.common import base_dir
 from utilities.io_tools import (
-    combinetf_input,
+    combinetf2_input,
     conversion_tools,
     input_tools,
     output_tools,
@@ -58,7 +58,7 @@ def writeOutput(fig, outfile, extensions=[], postfix=None, args=None, meta_info=
     plot_tools.write_index_and_log(
         *output,
         args=args,
-        analysis_meta_info={"AnalysisOutput": meta_info},
+        analysis_meta_info=meta_info,
     )
 
 
@@ -441,10 +441,10 @@ def plotImpacts(
 
 
 def readFitInfoFromFile(
-    rf,
-    filename,
+    fitresult,
     poi,
     group=False,
+    global_impacts=False,
     grouping=None,
     filters=[],
     stat=0.0,
@@ -453,25 +453,36 @@ def readFitInfoFromFile(
     saveForHepdata=False,
 ):
     logger.debug("Read impacts for poi from file")
-    impacts, labels, norm = combinetf_input.read_impacts_poi(
-        rf, group, add_total=group, stat=stat, poi=poi, normalize=normalize
-    )
 
-    if (group and grouping) or filters:
-        filtimpacts = []
-        filtlabels = []
-        for impact, label in zip(impacts, labels):
-            if group and grouping and label not in grouping:
-                continue
-            if filters and not any(re.search(f, label) for f in filters):
-                continue
-            filtimpacts.append(impact)
-            filtlabels.append(label)
-        impacts = filtimpacts
-        labels = filtlabels
+    if poi is not None:
+        impacts, labels = combinetf2_input.read_impacts_poi(
+            fitresult, poi, group, global_impacts=global_impacts, add_total=group, stat=stat, normalize=normalize
+        )
+    else:
+        labels = combinetf2_input.get_syst_labels(fitresult)
 
-    df = pd.DataFrame(np.array(impacts, dtype=np.float64).T * scale, columns=["impact"])
-    df["label"] = [translate_label.get(l, l) for l in labels]
+    apply_mask = (group and grouping) or filters
+    
+    if apply_mask:
+        mask = np.ones(len(labels), dtype=bool)
+        
+        if group and grouping:
+            mask &= np.isin(labels, grouping)  # Check if labels are in the grouping
+
+        if filters:
+            mask &= np.array([any(re.search(f, label) for f in filters) for label in labels])  # Apply regex filter
+    
+        labels = labels[mask]
+
+    df = pd.DataFrame(np.array(labels, dtype=str), columns=["label"])
+    df["label"] = df["label"].apply(lambda l: translate_label.get(l, l))
+
+    if poi is not None:
+        if apply_mask:
+            impacts = impacts[mask]
+
+        df["impact"] = impacts * scale
+
     if saveForHepdata and not group:
         convert_hepdata_json = (
             base_dir + "/utilities/styles/nuisance_translate_hepdata.json"
@@ -492,13 +503,19 @@ def readFitInfoFromFile(
 
     df["absimpact"] = np.abs(df["impact"])
     if not group:
-        df["pull"], df["constraint"], df["pull_prefit"] = (
-            combinetf_input.get_pulls_and_constraints(filename, labels)
-        )
-        df["pull"] = df["pull"] - df["pull_prefit"]
+        pulls, constraints, pulls_prefit = combinetf2_input.get_pulls_and_constraints(fitresult)
+        if apply_mask:
+            pulls = pulls[mask]
+            constraints = constraints[mask]
+            pulls_prefit = pulls_prefit[mask]
+        df["pull"], df["constraint"], df["pull_prefit"] = (pulls, constraints, pulls_prefit)
+        df["pull"] = pulls - pulls_prefit
         df["abspull"] = np.abs(df["pull"])
-        df["newpull"] = df["pull"] / (1 - df["constraint"] ** 2) ** 0.5
-        df["newpull"] = df["newpull"].replace([np.inf, -np.inf, np.nan], 999)
+        df["newpull"] = np.where(
+            (1 - df["constraint"] ** 2) > 0,
+            df["pull"] / np.sqrt(1 - df["constraint"] ** 2),
+            999
+        )
         if poi:
             df = df.drop(
                 df.loc[
@@ -618,6 +635,7 @@ def parseArgs():
         help="CMS label",
     )
     parser.add_argument("--noImpacts", action="store_true", help="Don't show impacts")
+    parser.add_argument("--globalImpacts", action="store_true", help="Show global impacts instead of traditional ones")
     parser.add_argument(
         "--showNumbers", action="store_true", help="Show values of impacts"
     )
@@ -706,6 +724,7 @@ def producePlots(
     fitresult_ref=None,
     grouping=None,
     pullrange=None,
+    meta=None,
 ):
     poi_type = poi.split("_")[-1] if poi else None
 
@@ -728,25 +747,6 @@ def producePlots(
             impact_title = "Impact on mass diff. (MeV)"
     elif poi and poi.startswith("width"):
         impact_title = "Impact on width (MeV)"
-    elif poi_type in ["pmaskedexp", "pmaskedexpnorm", "sumxsec", "sumxsecnorm"]:
-        if poi_type in ["pmaskedexp", "sumxsec"]:
-            meta = ioutils.pickle_load_h5py(fitresult["meta"])
-            channel_info = conversion_tools.combine_channels(meta, True)
-            if len(channel_info.keys()) == 1:
-                lumi = channel_info["chan_13TeV"]["lumi"]
-            else:
-                raise NotImplementedError(
-                    f"Found channels {[k for k in channel_info.keys()]} but only one channel is supported."
-                )
-            scale = 1.0 / (lumi * 1000)
-            poi_name = "_".join(poi.split("_")[:-1])
-            impact_title = "σ<sub>fid</sub>(" + poi_name + ") (pb)"
-        else:
-            impact_title = "1/σ<sub>fid</sub> dσ"
-    elif poi_type in ["ratiometaratio"]:
-        poi_name = "_".join(poi.split("_")[:-1]).replace("r_", "")
-        impact_title = f"Impact on ratio {poi_name} *1000"
-        scale = 1000
     elif poi in ["pdfAlphaS_noi"]:
         scale = 1.5
         impact_title = "Impact on <i>α</i><sub>S</sub> in 10<sup>-3</sup>"
@@ -756,9 +756,9 @@ def producePlots(
     if not (group and args.output_mode == "output"):
         df = readFitInfoFromFile(
             fitresult,
-            args.inputFile,
             poi,
             False,
+            global_impacts=args.globalImpacts,
             filters=args.filters,
             stat=args.stat / 100.0,
             normalize=normalize,
@@ -768,9 +768,9 @@ def producePlots(
     elif group:
         df = readFitInfoFromFile(
             fitresult,
-            args.inputFile,
             poi,
             True,
+            global_impacts=args.globalImpacts,
             filters=args.filters,
             stat=args.stat / 100.0,
             normalize=normalize,
@@ -782,9 +782,9 @@ def producePlots(
     if fitresult_ref:
         df_ref = readFitInfoFromFile(
             fitresult_ref,
-            args.referenceFile,
             poi,
             group,
+            global_impacts=args.globalImpacts,
             filters=args.filters,
             stat=args.stat / 100.0,
             normalize=normalize,
@@ -880,7 +880,6 @@ def producePlots(
         app.run_server(debug=True, port=3389, host=args.interface)
     elif args.output_mode == "output":
         postfix = poi
-        meta = input_tools.get_metadata(args.inputFile)
 
         outdir = output_tools.make_plot_dir(args.outFolder, "", eoscp=args.eoscp)
         if group:
@@ -976,24 +975,27 @@ if __name__ == "__main__":
         with open(args.translate) as f:
             translate_label = json.load(f)
 
-    fitresult = combinetf_input.get_fitresult(args.inputFile)
+    fitresult, meta = combinetf2_input.get_fitresult(args.inputFile, meta=True)
     fitresult_ref = (
-        combinetf_input.get_fitresult(args.referenceFile)
+        combinetf2_input.get_fitresult(args.referenceFile)
         if args.referenceFile
         else None
     )
 
+    meta = {"combinetf2" : meta["meta_info"], "setupCombine" : meta["meta_info_input"]["meta_info"]}
+
     if args.noImpacts:
         # do one pulls plot, ungrouped
         producePlots(
-            fitresult, args, None, fitresult_ref=fitresult_ref, pullrange=args.pullrange
+            fitresult, args, None, fitresult_ref=fitresult_ref, pullrange=args.pullrange, 
+            meta=meta,
         )
         exit()
 
     if args.poi:
         pois = [args.poi]
     else:
-        pois = combinetf_input.get_poi_names(fitresult, poi_type=args.poiType)
+        pois = combinetf2_input.get_poi_names(fitresult)
 
     for poi in pois:
         logger.info(f"Now at {poi}")
@@ -1005,6 +1007,7 @@ if __name__ == "__main__":
                 poi,
                 fitresult_ref=fitresult_ref,
                 pullrange=args.pullrange,
+                meta=meta,
             )
         if args.mode in ["both", "group"]:
             logger.debug(f"Make impact by group")
@@ -1016,4 +1019,5 @@ if __name__ == "__main__":
                 fitresult_ref=fitresult_ref,
                 grouping=grouping,
                 pullrange=args.pullrange,
+                meta=meta,
             )

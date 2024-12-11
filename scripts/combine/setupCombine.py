@@ -111,7 +111,7 @@ def make_parser(parser=None):
         "--outfolder",
         type=str,
         default=".",
-        help="Output folder with the root file storing all histograms and datacards for single charge (subfolder WMass or ZMassWLike is created automatically inside)",
+        help="Output folder with the file to be fit (subfolder WMass or ZMassWLike is created automatically inside)",
     )
     parser.add_argument("-i", "--inputFile", nargs="+", type=str)
     parser.add_argument(
@@ -127,16 +127,6 @@ def make_parser(parser=None):
     )
     parser.add_argument(
         "--noColorLogger", action="store_true", help="Do not use logging with colors"
-    )
-    parser.add_argument(
-        "--root",
-        action="store_true",
-        help="Write out datacard in txt/root format (deprecated)",
-    )
-    parser.add_argument(
-        "--allow-deprecated-root-output",
-        action="store_true",
-        help="Force write out datacard in txt/root format despite deprecation",
     )
     parser.add_argument(
         "--sparse",
@@ -171,11 +161,7 @@ def make_parser(parser=None):
         default="",
         help="Regular expression to keep some systematics, overriding --excludeNuisances. Can be used to keep only some systs while excluding all the others with '.*'",
     )
-    parser.add_argument(
-        "--absolutePathInCard",
-        action="store_true",
-        help="In the datacard, set Absolute path for the root file where shapes are stored",
-    )
+
     parser.add_argument(
         "-n",
         "--baseName",
@@ -1005,8 +991,6 @@ def setup(
     cardTool.setExponentialTransform(args.exponentialTransform)
 
     logger.debug(f"Making datacards with these processes: {cardTool.getProcesses()}")
-    if args.absolutePathInCard:
-        cardTool.setAbsolutePathShapeInCard()
 
     if simultaneousABCD:
         # In case of ABCD we need to have different fake processes for e and mu to have uncorrelated uncertainties
@@ -2353,29 +2337,6 @@ def outputFolderName(outfolder, card_tool, doStatOnly, postfix):
     return f"{outfolder}/{'_'.join(to_join)}/"
 
 
-def run_root(args, xnorm=False):
-    forceNonzero = False  # args.analysisMode == None
-    checkSysts = forceNonzero
-
-    fitvar = args.fitvar[0].split("-") if not xnorm else ["count"]
-    genvar = (
-        args.genAxes[0].split("-")
-        if hasattr(args, "genAxes") and len(args.genAxes)
-        else None
-    )
-    iBaseName = args.baseName[0]
-    iLumiScale = args.lumiScale[0]
-    cardTool = setup(
-        args, args.inputFile[0], iBaseName, iLumiScale, fitvar, genvar, xnorm=xnorm
-    )
-    cardTool.setOutput(
-        outputFolderName(args.outfolder, cardTool, args.doStatOnly, args.postfix),
-        analysis_label(cardTool),
-    )
-    cardTool.writeOutput(args=args, forceNonzero=forceNonzero, check_systs=checkSysts)
-    return
-
-
 if __name__ == "__main__":
     parser = make_parser()
     args = parser.parse_args()
@@ -2419,104 +2380,89 @@ if __name__ == "__main__":
         )
         args.doStatOnly = True
 
-    if not args.root:
-        if len(args.inputFile) > 1 and (args.fitWidth or args.decorMassWidth):
-            raise ValueError(
-                "Fitting multiple channels with fitWidth or decorMassWidth is not currently supported since this can lead to inconsistent treatment of mass variations between channels."
-            )
-
-        writer = HDF5Writer.HDF5Writer(sparse=args.sparse)
-
-        if args.baseName == "xnorm":
-            writer.theoryFit = True
-
-        # loop over all files
-        outnames = []
-        for i, ifile in enumerate(args.inputFile):
-            fitvar = args.fitvar[i].split("-")
-            genvar = (
-                args.genAxes[i].split("-")
-                if hasattr(args, "genAxes") and len(args.genAxes)
-                else None
-            )
-            iBaseName = (
-                args.baseName[0] if len(args.baseName) == 1 else args.baseName[i]
-            )
-            iLumiScale = (
-                args.lumiScale[0] if len(args.lumiScale) == 1 else args.lumiScale[i]
-            )
-
-            cardTool = setup(
-                args,
-                ifile,
-                iBaseName,
-                iLumiScale,
-                fitvar,
-                genvar,
-                xnorm=args.fitresult is not None or args.baseName == "xnorm",
-            )
-            outnames.append(
-                (
-                    outputFolderName(
-                        args.outfolder, cardTool, args.doStatOnly, args.postfix
-                    ),
-                    analysis_label(cardTool),
-                )
-            )
-
-            writer.add_channel(cardTool)
-            if isFloatingPOIs or isUnfolding:
-                fitvar = genvar if isPoiAsNoi else ["count"]
-                cardTool = setup(args, ifile, iBaseName, iLumiScale, fitvar, xnorm=True)
-                writer.add_channel(cardTool)
-
-        if not args.skipSumGroups:
-            combine_helpers.add_ratio_xsec_groups(writer)
-            combine_helpers.add_asym_xsec_groups(writer)
-            combine_helpers.add_helicty_xsec_groups(writer)
-
-        if args.fitresult:
-            writer.set_fitresult(
-                args.fitresult, mc_stat=not (args.noMCStat or args.explicitSignalMCstat)
-            )
-
-        if len(outnames) == 1:
-            outfolder, outfile = outnames[0]
-        else:
-            dir_append = "_".join(
-                [
-                    "",
-                    *filter(
-                        lambda x: x,
-                        ["statOnly" if args.doStatOnly else "", args.postfix],
-                    ),
-                ]
-            )
-            unique_names = list(dict.fromkeys([o[1] for o in outnames]))
-            outfolder = (
-                f"{args.outfolder}/Combination_{''.join(unique_names)}{dir_append}/"
-            )
-            outfile = "Combination"
-        logger.info(f"Writing HDF5 output to {outfile}")
-        writer.write(
-            args,
-            outfolder,
-            outfile,
-            allowNegativeExpectation=args.allowNegativeExpectation,
+    if len(args.inputFile) > 1 and (args.fitWidth or args.decorMassWidth):
+        raise ValueError(
+            "Fitting multiple channels with fitWidth or decorMassWidth is not currently supported since this can lead to inconsistent treatment of mass variations between channels."
         )
-    else:
-        if not args.allow_deprecated_root_output:
-            raise RuntimeError(
-                "Root output is deprecated, forcibly enable it with --allow-deprecated-root-output"
+
+    writer = HDF5Writer.HDF5Writer(sparse=args.sparse)
+
+    if args.fitresult:
+        writer.theoryFit = True
+
+    # loop over all files
+    outnames = []
+    for i, ifile in enumerate(args.inputFile):
+        fitvar = args.fitvar[i].split("-")
+        genvar = (
+            args.genAxes[i].split("-")
+            if hasattr(args, "genAxes") and len(args.genAxes)
+            else None
+        )
+        iBaseName = (
+            args.baseName[0] if len(args.baseName) == 1 else args.baseName[i]
+        )
+        iLumiScale = (
+            args.lumiScale[0] if len(args.lumiScale) == 1 else args.lumiScale[i]
+        )
+
+        cardTool = setup(
+            args,
+            ifile,
+            iBaseName,
+            iLumiScale,
+            fitvar,
+            genvar,
+            xnorm=args.fitresult is not None or args.baseName == "xnorm",
+        )
+        outnames.append(
+            (
+                outputFolderName(
+                    args.outfolder, cardTool, args.doStatOnly, args.postfix
+                ),
+                analysis_label(cardTool),
             )
+        )
 
-        if len(args.inputFile) > 1:
-            raise IOError(f"Multiple input files only supported within --hdf5 mode")
+        writer.add_channel(cardTool)
+        if isFloatingPOIs or isUnfolding:
+            fitvar = genvar if isPoiAsNoi else ["count"]
+            cardTool = setup(args, ifile, iBaseName, iLumiScale, fitvar, xnorm=True)
+            writer.add_channel(cardTool)
 
-        run_root(args)
-        if isFloatingPOIs:
-            logger.warning("Now running with xnorm = True")
-            # in case of unfolding and hdf5, the xnorm histograms are directly written into the hdf5
-            run_root(args, xnorm=True)
+    if not args.skipSumGroups:
+        combine_helpers.add_ratio_xsec_groups(writer)
+        combine_helpers.add_asym_xsec_groups(writer)
+        combine_helpers.add_helicty_xsec_groups(writer)
+
+    if args.fitresult:
+        writer.set_fitresult(
+            args.fitresult, mc_stat=not (args.noMCStat or args.explicitSignalMCstat)
+        )
+
+    if len(outnames) == 1:
+        outfolder, outfile = outnames[0]
+    else:
+        dir_append = "_".join(
+            [
+                "",
+                *filter(
+                    lambda x: x,
+                    ["statOnly" if args.doStatOnly else "", args.postfix],
+                ),
+            ]
+        )
+        unique_names = list(dict.fromkeys([o[1] for o in outnames]))
+        outfolder = (
+            f"{args.outfolder}/Combination_{''.join(unique_names)}{dir_append}/"
+        )
+        outfile = "Combination"
+    logger.info(f"Writing HDF5 output to {outfile}")
+    writer.write(
+        args,
+        outfolder,
+        outfile,
+        allowNegativeExpectation=args.allowNegativeExpectation,
+    )
 
     logging.summary()
