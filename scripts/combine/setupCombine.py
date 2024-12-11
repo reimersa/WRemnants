@@ -2399,9 +2399,7 @@ if __name__ == "__main__":
             if hasattr(args, "genAxes") and len(args.genAxes)
             else None
         )
-        iBaseName = (
-            args.baseName[0] if len(args.baseName) == 1 else args.baseName[i]
-        )
+        iBaseName = args.baseName[0] if len(args.baseName) == 1 else args.baseName[i]
         iLumiScale = (
             args.lumiScale[0] if len(args.lumiScale) == 1 else args.lumiScale[i]
         )
@@ -2453,9 +2451,7 @@ if __name__ == "__main__":
             ]
         )
         unique_names = list(dict.fromkeys([o[1] for o in outnames]))
-        outfolder = (
-            f"{args.outfolder}/Combination_{''.join(unique_names)}{dir_append}/"
-        )
+        outfolder = f"{args.outfolder}/Combination_{''.join(unique_names)}{dir_append}/"
         outfile = "Combination"
     logger.info(f"Writing HDF5 output to {outfile}")
     writer.write(

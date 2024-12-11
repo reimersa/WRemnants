@@ -16,7 +16,6 @@ from dash import dcc, html
 from dash.dependencies import Input, Output
 from plotly.subplots import make_subplots
 
-from narf import ioutils
 from utilities import logging
 from utilities.common import base_dir
 from utilities.io_tools import (
@@ -456,22 +455,30 @@ def readFitInfoFromFile(
 
     if poi is not None:
         impacts, labels = combinetf2_input.read_impacts_poi(
-            fitresult, poi, group, global_impacts=global_impacts, add_total=group, stat=stat, normalize=normalize
+            fitresult,
+            poi,
+            group,
+            global_impacts=global_impacts,
+            add_total=group,
+            stat=stat,
+            normalize=normalize,
         )
     else:
         labels = combinetf2_input.get_syst_labels(fitresult)
 
     apply_mask = (group and grouping) or filters
-    
+
     if apply_mask:
         mask = np.ones(len(labels), dtype=bool)
-        
+
         if group and grouping:
             mask &= np.isin(labels, grouping)  # Check if labels are in the grouping
 
         if filters:
-            mask &= np.array([any(re.search(f, label) for f in filters) for label in labels])  # Apply regex filter
-    
+            mask &= np.array(
+                [any(re.search(f, label) for f in filters) for label in labels]
+            )  # Apply regex filter
+
         labels = labels[mask]
 
     df = pd.DataFrame(np.array(labels, dtype=str), columns=["label"])
@@ -503,18 +510,24 @@ def readFitInfoFromFile(
 
     df["absimpact"] = np.abs(df["impact"])
     if not group:
-        pulls, constraints, pulls_prefit = combinetf2_input.get_pulls_and_constraints(fitresult)
+        pulls, constraints, pulls_prefit = combinetf2_input.get_pulls_and_constraints(
+            fitresult
+        )
         if apply_mask:
             pulls = pulls[mask]
             constraints = constraints[mask]
             pulls_prefit = pulls_prefit[mask]
-        df["pull"], df["constraint"], df["pull_prefit"] = (pulls, constraints, pulls_prefit)
+        df["pull"], df["constraint"], df["pull_prefit"] = (
+            pulls,
+            constraints,
+            pulls_prefit,
+        )
         df["pull"] = pulls - pulls_prefit
         df["abspull"] = np.abs(df["pull"])
         df["newpull"] = np.where(
             (1 - df["constraint"] ** 2) > 0,
             df["pull"] / np.sqrt(1 - df["constraint"] ** 2),
-            999
+            999,
         )
         if poi:
             df = df.drop(
@@ -635,7 +648,11 @@ def parseArgs():
         help="CMS label",
     )
     parser.add_argument("--noImpacts", action="store_true", help="Don't show impacts")
-    parser.add_argument("--globalImpacts", action="store_true", help="Show global impacts instead of traditional ones")
+    parser.add_argument(
+        "--globalImpacts",
+        action="store_true",
+        help="Show global impacts instead of traditional ones",
+    )
     parser.add_argument(
         "--showNumbers", action="store_true", help="Show values of impacts"
     )
@@ -982,12 +999,19 @@ if __name__ == "__main__":
         else None
     )
 
-    meta = {"combinetf2" : meta["meta_info"], "setupCombine" : meta["meta_info_input"]["meta_info"]}
+    meta = {
+        "combinetf2": meta["meta_info"],
+        "setupCombine": meta["meta_info_input"]["meta_info"],
+    }
 
     if args.noImpacts:
         # do one pulls plot, ungrouped
         producePlots(
-            fitresult, args, None, fitresult_ref=fitresult_ref, pullrange=args.pullrange, 
+            fitresult,
+            args,
+            None,
+            fitresult_ref=fitresult_ref,
+            pullrange=args.pullrange,
             meta=meta,
         )
         exit()

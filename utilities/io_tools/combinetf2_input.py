@@ -1,6 +1,6 @@
 import h5py
 import numpy as np
-import re
+
 from narf import ioutils
 from utilities import logging
 
@@ -15,16 +15,26 @@ def get_fitresult(fitresult_filename, meta=False):
         return h5results, meta
     return h5results
 
+
 def get_poi_names(fitresult):
     h = fitresult["impacts"].get()
-    return np.array(h.axes['parms'])
+    return np.array(h.axes["parms"])
+
 
 def get_syst_labels(fitresult):
-    h_parms = fitresult["parms"].get()
-    return np.array(h.axes['parms'])
+    h = fitresult["parms"].get()
+    return np.array(h.axes["parms"])
+
 
 def read_impacts_poi(
-    fitresult, poi, grouped=False, global_impacts=False, sort=True, add_total=True, stat=0.0, normalize=True
+    fitresult,
+    poi,
+    grouped=False,
+    global_impacts=False,
+    sort=True,
+    add_total=True,
+    stat=0.0,
+    normalize=True,
 ):
     # read impacts of a single POI
     impact_name = "impacts"
@@ -46,12 +56,12 @@ def read_impacts_poi(
 
     if add_total or normalize:
         h_parms = fitresult["parms"].get()
-        total = np.sqrt(h_parms[{"parms":poi}].variance)
+        total = np.sqrt(h_parms[{"parms": poi}].variance)
 
         if add_total:
             impacts = np.append(impacts, total)
             labels = np.append(labels, "Total")
-        
+
         if normalize:
             impacts /= total
 
@@ -61,6 +71,7 @@ def read_impacts_poi(
 
     return impacts, labels
 
+
 def get_pulls_and_constraints(fitresult):
     h_parms = fitresult["parms"].get()
     h_parms_prefit = fitresult["parms_prefit"].get()
@@ -68,5 +79,5 @@ def get_pulls_and_constraints(fitresult):
     pulls = h_parms.values()
     constraints = np.sqrt(h_parms.variances())
     pulls_prefit = np.zeros_like(pulls, dtype=float)
-    
+
     return pulls, constraints, pulls_prefit
