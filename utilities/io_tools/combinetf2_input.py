@@ -31,6 +31,7 @@ def read_impacts_poi(
     poi,
     grouped=False,
     global_impacts=False,
+    pulls=False,
     sort=True,
     add_total=True,
     stat=0.0,
@@ -68,6 +69,15 @@ def read_impacts_poi(
     if stat > 0:
         idx = np.argwhere(labels == "stat")
         impacts[idx] = stat
+
+    if pulls:
+        pulls, constraints, pulls_prefit = get_pulls_and_constraints(fitresult)
+        if sort:
+            pulls = pulls[order]
+            constraints = constraints[order]
+            pulls_prefit = pulls_prefit[order]
+
+        return pulls, constraints, pulls_prefit, impacts, labels
 
     return impacts, labels
 

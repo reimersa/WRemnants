@@ -981,10 +981,11 @@ class HDF5Writer(object):
             full_cov = (
                 np.add(data_cov, np.diag(sumw2)) if self.theoryFitMCStat else data_cov
             )
+            full_cov_inv = np.linalg.inv(full_cov)
             nbytes += writeFlatInChunks(
-                full_cov,
+                full_cov_inv,
                 f,
-                "hdata_cov",
+                "hdata_cov_inv",
                 maxChunkBytes=self.chunkSize,
             )
             data_cov = None

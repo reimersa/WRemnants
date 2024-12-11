@@ -454,17 +454,25 @@ def readFitInfoFromFile(
     logger.debug("Read impacts for poi from file")
 
     if poi is not None:
-        impacts, labels = combinetf2_input.read_impacts_poi(
+        out = combinetf2_input.read_impacts_poi(
             fitresult,
             poi,
             group,
+            pulls=not group,
             global_impacts=global_impacts,
             add_total=group,
             stat=stat,
             normalize=normalize,
         )
+        if group:
+            impacts, labels = out
+        else:
+            pulls, constraints, pulls_prefit, impacts, labels = out
     else:
         labels = combinetf2_input.get_syst_labels(fitresult)
+        pulls, constraints, pulls_prefit = combinetf2_input.get_pulls_and_constraints(
+            fitresult
+        )
 
     apply_mask = (group and grouping) or filters
 
@@ -510,9 +518,6 @@ def readFitInfoFromFile(
 
     df["absimpact"] = np.abs(df["impact"])
     if not group:
-        pulls, constraints, pulls_prefit = combinetf2_input.get_pulls_and_constraints(
-            fitresult
-        )
         if apply_mask:
             pulls = pulls[mask]
             constraints = constraints[mask]
