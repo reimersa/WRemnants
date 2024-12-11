@@ -389,7 +389,7 @@ def make_parser(parser=None):
     parser.add_argument(
         "--explicitSignalMCstat",
         action="store_true",
-        help="Use explicit parameters for signal MC stat uncertainty. Introduces one nuisance parameter per reco bin. When unfolding, correlate bin by bin statistical uncertainty in reco bins with masked channel.",
+        help="Use explicit parameters for signal MC stat uncertainty. Introduces one nuisance parameter per reco bin.",
     )
     parser.add_argument(
         "--minnloScaleUnc",
