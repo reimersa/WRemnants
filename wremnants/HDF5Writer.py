@@ -886,43 +886,6 @@ class HDF5Writer(object):
         systsnoconstraint = self.get_systsnoconstraint()
         noigroups, noigroupidxs = self.get_noigroups()
         systgroups, systgroupidxs = self.get_systgroups()
-        poigroups = (
-            self.get_systsnoimasked()
-            if hasattr(args, "poiAsNoi") and args.poiAsNoi
-            else procs
-        )
-        sumgroups, sumgroupsegmentids, sumgroupidxs = self.get_sumgroups(poigroups)
-        chargegroups, chargegroupidxs = self.get_ntuple_groups(
-            poigroups, "cardAsymXsecGroups"
-        )
-        polgroups, polgroupidxs = self.get_polgroups()
-        helgroups, helgroupidxs = self.get_ntuple_groups(poigroups, "cardHelXsecGroups")
-        chargemetagroups, chargemetagroupidxs = self.get_ntuple_groups(
-            sumgroups, "cardAsymSumXsecGroups"
-        )
-        ratiometagroups, ratiometagroupidxs = self.get_ntuple_groups(
-            sumgroups, "cardRatioSumXsecGroups"
-        )
-        helmetagroups, helmetagroupidxs = self.get_ntuple_groups(
-            sumgroups, "cardHelSumXsecGroups"
-        )
-        reggroups, reggroupidxs = self.get_reggroups()
-        (
-            poly1dreggroups,
-            poly1dreggroupfirstorder,
-            poly1dreggrouplastorder,
-            poly1dreggroupnames,
-            poly1dreggroupbincenters,
-        ) = self.get_poly1dreggroups()
-        (
-            poly2dreggroups,
-            poly2dreggroupfirstorder,
-            poly2dreggrouplastorder,
-            poly2dreggroupfullorder,
-            poly2dreggroupnames,
-            poly2dreggroupbincenters0,
-            poly2dreggroupbincenters1,
-        ) = self.get_poly2dreggroups()
 
         # save some lists of strings to the file for later use
         def create_dataset(
@@ -1141,51 +1104,3 @@ class HDF5Writer(object):
     def get_systgroups(self):
         # list of groups of systematics (nuisances) and lists of indexes
         return self.get_groups(self.dict_systgroups)
-
-    def get_sumgroups(self, procs):
-        # list of groups of signal processes to be summed
-        sumgroups = []
-        sumgroupsegmentids = []
-        sumgroupidxs = []
-        dict_sumgroups = {}
-        for chanInfo in self.get_channels().values():
-            dict_sumgroups.update(chanInfo.cardSumXsecGroups)
-        for igroup, (group, members) in enumerate(
-            common.natural_sort_dict(dict_sumgroups).items()
-        ):
-            sumgroups.append(group)
-            for proc in members:
-                sumgroupsegmentids.append(igroup)
-                sumgroupidxs.append(procs.index(proc))
-        return sumgroups, sumgroupsegmentids, sumgroupidxs
-
-    def get_polgroups(self):
-        # list of groups of signal processes by polarization
-        return [], []
-
-    def get_ntuple_groups(self, groups, pairgroups):
-        pairmetagroups = []
-        pairmetagroupidxs = []
-        dict_pairroups = {}
-        for chanInfo in self.get_channels().values():
-            dict_pairroups.update(getattr(chanInfo, pairgroups))
-        for group, members in dict_pairroups.items():
-            pairmetagroups.append(group)
-            pairmetagroupidx = []
-            for proc in members:
-                pairmetagroupidx.append(groups.index(proc))
-            pairmetagroupidxs.append(pairmetagroupidx)
-
-        return pairmetagroups, pairmetagroupidxs
-
-    def get_reggroups(self):
-        # list of groups of signal processes for regularization
-        return [], []
-
-    def get_poly1dreggroups(self):
-        # list of groups of signal processes for regularization
-        return [], [], [], [], []
-
-    def get_poly2dreggroups(self):
-        # list of groups of signal processes for regularization
-        return [], [], [], [], [], [], []
