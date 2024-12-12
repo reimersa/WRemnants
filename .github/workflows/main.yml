@@ -508,7 +508,7 @@ jobs:
         run: >- 
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/setupCombine.py 
           --fakeEstimation simple --fakeSmoothingMode binned --ewUnc --analysisMode unfolding
-          --fitvar ptVGen-qGen ptVGen-qGen ptVGen ptVGen --genAxes ptVGen-qGen ptVGen-qGen ptVGen ptVGen
+          --fitvar ptW-charge ptW-charge ptll ptll --genAxes ptVGen-qGen ptVGen-qGen ptVGen ptVGen
           -i $HIST_FILE_MU $HIST_FILE_E $HIST_FILE_MUMU $HIST_FILE_EE -o $COMBINED_DIR --postfix ptll 
 
       - name: lowpu combine unfolding fit 
@@ -532,13 +532,10 @@ jobs:
 
       - name: lowpu combine unfolded xsec plot
         run: >-
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/plotting/unfolding_xsec.py
-          $COMBINED_DIR/Combination_WMass_lowPUZMass_lowPU_ptll/fitresults.hdf5 -o $WEB_DIR -f $PLOT_DIR/lowPU -v 4 --rrange 0.0 2.0
+          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/plotting/postfitPlots.py 
+          $COMBINED_DIR/Combination_WMass_lowPUZMass_lowPU_ptVgen/fitresults.hdf5 -o $WEB_DIR -f $PLOT_DIR/lowPU 
+          --rrange 0.0 2.0 --unfoldedXsec --dataName 'Unfolded data' --noUncertainty --noChisq --legCols 1 --noSciy --logoPos 0
 
-      - name: lowpu combine unfolding result to hist
-        run: >-
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/utilities/fitresult_pois_to_hist.py
-          --expected $COMBINED_DIR/Combination_WMass_lowPUZMass_lowPU_ptll/fitresults.hdf5 -o $COMBINED_DIR/Combination_WMass_lowPUZMass_lowPU_ptll/
 
   wlike:
     # The type of runner that the job will run on
