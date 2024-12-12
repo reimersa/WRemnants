@@ -11,7 +11,6 @@ import narf
 from utilities import common, logging
 from utilities.h5pyutils import writeFlatInChunks, writeSparse
 from utilities.io_tools import combinetf_input
-from wremnants.combine_helpers import projectABCD
 
 logger = logging.child_logger(__name__)
 
@@ -146,11 +145,7 @@ class HDF5Writer(object):
                 f"Sumw2 not filled for {h} but needed for binByBin uncertainties, variances are set to 0"
             )
 
-        if chanInfo.simultaneousABCD and set(chanInfo.getFakerateAxes()) != set(
-            chanInfo.fit_axes[: len(chanInfo.getFakerateAxes())]
-        ):
-            h = projectABCD(chanInfo, h, return_variances=return_variances)
-        elif h.axes.name != axes:
+        if h.axes.name != axes:
             h = h.project(*axes)
 
         if return_variances:
@@ -201,7 +196,7 @@ class HDF5Writer(object):
                 label=chanInfo.nominalName,
                 scaleToNewLumi=chanInfo.lumiScale,
                 forceNonzero=forceNonzero,
-                sumFakesPartial=not chanInfo.simultaneousABCD,
+                sumFakesPartial=True,
             )
 
             procs_chan = chanInfo.predictedProcesses()
@@ -474,7 +469,7 @@ class HDF5Writer(object):
                     forceToNominal=forceToNominal,
                     scaleToNewLumi=chanInfo.lumiScale,
                     nominalIfMissing=not chanInfo.xnorm,
-                    sumFakesPartial=not chanInfo.simultaneousABCD,
+                    sumFakesPartial=True,
                 )
 
                 for proc in procs_syst:

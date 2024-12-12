@@ -359,11 +359,6 @@ def make_parser(parser=None):
         help="Order of the polynomial for the smoothing of the application region or full prediction, depending on the smoothing mode",
     )
     parser.add_argument(
-        "--simultaneousABCD",
-        action="store_true",
-        help="Produce datacard for simultaneous fit of ABCD regions",
-    )
-    parser.add_argument(
         "--skipSumGroups",
         action="store_true",
         help="Don't add sum groups to the output to save time e.g. when computing impacts",
@@ -785,8 +780,6 @@ def setup(
             raise ValueError("Only W or Z processes are permitted in the gen fit")
         wmass = hasw
 
-    simultaneousABCD = wmass and args.simultaneousABCD and not xnorm
-
     massConstraintMode = args.massConstraintModeW if wmass else args.massConstraintModeZ
 
     if massConstraintMode == "automatic":
@@ -961,7 +954,6 @@ def setup(
             smoothingPolynomialSpectrum=args.fakeSmoothingPolynomial,
             mcCorr=args.fakeMCCorr,
             integrate_x="mt" not in fitvar,
-            simultaneousABCD=simultaneousABCD,
             forceGlobalScaleFakes=args.forceGlobalScaleFakes,
         )
         datagroups.set_histselectors(
@@ -969,9 +961,7 @@ def setup(
         )
 
     # Start to create the CardTool object, customizing everything
-    cardTool = CardTool.CardTool(
-        xnorm=xnorm, simultaneousABCD=simultaneousABCD, real_data=args.realData
-    )
+    cardTool = CardTool.CardTool(xnorm=xnorm, real_data=args.realData)
     cardTool.setDatagroups(datagroups)
 
     if wmass:
@@ -981,29 +971,9 @@ def setup(
 
     logger.debug(f"Making datacards with these processes: {cardTool.getProcesses()}")
 
-    if simultaneousABCD:
-        # In case of ABCD we need to have different fake processes for e and mu to have uncorrelated uncertainties
-        cardTool.setFakeName(
-            datagroups.fakeName + (datagroups.flavor if datagroups.flavor else "")
-        )
-        cardTool.unroll = True
-
-        # add ABCD regions to fit
-        mtName = "mt" if "mt" in fitvar else common.passMTName
-        if common.passIsoName not in fitvar:
-            fitvar = [*fitvar, common.passIsoName]
-        if mtName not in fitvar:
-            fitvar = [*fitvar, mtName]
-
     cardTool.setFitAxes(fitvar)
 
-    if (
-        args.sumChannels
-        or xnorm
-        or dilepton
-        or simultaneousABCD
-        or "charge" not in fitvar
-    ):
+    if args.sumChannels or xnorm or dilepton or "charge" not in fitvar:
         cardTool.setWriteByCharge(False)
     else:
         cardTool.setChannels(args.recoCharge)
@@ -1105,7 +1075,7 @@ def setup(
 
     passSystToFakes = (
         wmass
-        and not (simultaneousABCD or xnorm or args.skipSignalSystOnFakes)
+        and not (xnorm or args.skipSignalSystOnFakes)
         and cardTool.getFakeName() != "QCD"
         and (excludeGroup != None and cardTool.getFakeName() not in excludeGroup)
         and (filterGroup == None or cardTool.getFakeName() in filterGroup)
@@ -1183,7 +1153,7 @@ def setup(
     )
     cardTool.addProcessGroup(
         "MCnoQCD",
-        lambda x: x not in ["QCD", "Data"] + (["Fake"] if simultaneousABCD else []),
+        lambda x: x not in ["QCD", "Data"],
     )
     # FIXME/FOLLOWUP: the following groups may actually not exclude the OOA when it is not defined as an independent process with specific name
     cardTool.addProcessGroup(
@@ -1226,44 +1196,6 @@ def setup(
             "Temporarily not using mass weights for Wtaunu. Please update when possible"
         )
         signal_samples_forMass = ["signal_samples"]
-
-    if simultaneousABCD:
-        # Fakerate A/B = C/D
-        fakerate_axes_syst = [f"_{n}" for n in args.fakerateAxes]
-        cardTool.addSystematic(
-            name="nominal",
-            rename=f"{cardTool.getFakeName()}Rate",
-            processes=cardTool.getFakeName(),
-            group="Fake",
-            splitGroup={"experiment": ".*", "expNoCalib": ".*"},
-            systNamePrepend=f"{cardTool.getFakeName()}Rate",
-            noConstraint=True,
-            mirror=True,
-            systAxes=fakerate_axes_syst,
-            action=syst_tools.make_fakerate_variation,
-            actionArgs=dict(
-                fakerate_axes=args.fakerateAxes, fakerate_axes_syst=fakerate_axes_syst
-            ),
-        )
-        # Normalization parameters
-        fakenorm_axes = [*args.fakerateAxes, mtName]
-        fakenorm_axes_syst = [f"_{n}" for n in fakenorm_axes]
-        cardTool.addSystematic(
-            name="nominal",
-            rename=f"{cardTool.getFakeName()}Norm",
-            processes=cardTool.getFakeName(),
-            group="Fake",
-            splitGroup={"experiment": ".*", "expNoCalib": ".*"},
-            systNamePrepend=f"{cardTool.getFakeName()}Norm",
-            noConstraint=True,
-            mirror=True,
-            systAxes=fakenorm_axes_syst,
-            action=lambda h: hh.addHists(
-                h,
-                hh.expand_hist_by_duplicate_axes(h, fakenorm_axes, fakenorm_axes_syst),
-                scale2=0.1,
-            ),
-        )
 
     if args.doStatOnly and isUnfolding and not isPoiAsNoi:
         # At least one nuisance parameter is needed to run combine impacts (e.g. needed for unfolding postprocessing chain)
