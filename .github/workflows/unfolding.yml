@@ -39,18 +39,24 @@ jobs:
           submodules: 'recursive'
           lfs: 'true'
 
+      - name: setup singularity
+        run: scripts/ci/setup_singularity.sh
+      
+      - name: set environment variables
+        run: source setup.sh
+
       - name: run isort
         run: |
-          scripts/ci/run_with_singularity.sh isort . --check-only --diff --skip narf --skip wremnants-data --profile black --line-length 88
+          isort . --check-only --diff --skip narf --skip wremnants-data --profile black --line-length 88
 
       - name: run Flake8
         run: >-
-          scripts/ci/run_with_singularity.sh flake8 . --exclude=narf,wremnants-data --max-line-length 88
+          flake8 . --exclude=narf,wremnants-data --max-line-length 88
           --select=F401,F402,F403,F404,F405,F406,F407,F601,F602,F621,F622,F631,F632,F633,F634,F701,F702,F704,F706,F707,F721,F722,F723,F821,F822,F823,F831,F901
 
       - name: run Black
         run: |
-          scripts/ci/run_with_singularity.sh black --exclude '(^\.git|\.github|narf|wremnants-data)' --check .
+          black --exclude '(^\.git|\.github|narf|wremnants-data)' --check .
 
       - name: check Python Files
         run: |
@@ -58,7 +64,7 @@ jobs:
           find . -name '*.py' -not -path '*/narf/*' -not -path '*/wremnants-data/*' | \
           xargs -P 16 -I {} bash -c '
             echo "Checking python file: {}"
-            scripts/ci/run_with_singularity.sh python -m py_compile "{}" || \
+            python -m py_compile "{}" || \
             { echo "Invalid python syntax in {}"; exit 1; }
           '
 
@@ -67,7 +73,7 @@ jobs:
           # Find all JSON files and check their syntax
           for FILE in $(find . -name '*.json' -not -path '*/narf/*' -not -path '*/wremnants-data/*'); do
             echo "Checking JSON file: $FILE"
-            scripts/ci/run_with_singularity.sh python -m json.tool "$FILE" > /dev/null
+            python -m json.tool "$FILE" > /dev/null
             if [ $? -ne 0 ]; then
               echo "Invalid JSON syntax in $FILE"
               exit 1
@@ -79,7 +85,7 @@ jobs:
           # Find all YAML files and check their syntax
           for FILE in $(find . -name '*.yaml' -not -path '*/narf/*' -not -path '*/wremnants-data/*'); do
             echo "Checking YAML file: $FILE"
-            scripts/ci/run_with_singularity.sh python -c "import yaml, sys; yaml.safe_load(open('$FILE'))" > /dev/null
+            python -c "import yaml, sys; yaml.safe_load(open('$FILE'))" > /dev/null
             if [ $? -ne 0 ]; then
               echo "Invalid YAML syntax in $FILE"
               exit 1
@@ -92,7 +98,7 @@ jobs:
           find . \( -name '*.c' -o -name '*.cpp' -o -name '*.hpp' -o -name '*.h' \) -not -path '*/narf/*' -not -path '*/wremnants-data/*' | \
           xargs -P 16 -I {} bash -c '
             echo "Checking {}"
-            scripts/ci/run_with_singularity.sh clang++ -I./narf/narf/include/ -I./wremnants/include/ -std=c++20 -fsyntax-only "{}" || \
+            clang++ -I./narf/narf/include/ -I./wremnants/include/ -std=c++20 -fsyntax-only "{}" || \
             { echo "Syntax error in {}"; exit 1; }
           '
 
@@ -142,14 +148,6 @@ jobs:
           klist
           echo "xrdfs root://eosuser.cern.ch// ls $EOS_DIR"
           xrdfs root://eosuser.cern.ch// ls $EOS_DIR
-
-      - name: setup kerberos within singularity image
-        run: |
-          scripts/ci/run_with_singularity.sh kinit -kt ~/private/.keytab cmsmwbot@CERN.CH
-          scripts/ci/run_with_singularity.sh klist -k -t -e ~/private/.keytab
-          scripts/ci/run_with_singularity.sh klist
-          echo "xrdfs root://eoscms.cern.ch// ls $EOS_DATA_DIR"
-          scripts/ci/run_with_singularity.sh xrdfs root://eoscms.cern.ch// ls $EOS_DATA_DIR
 
       - name: setup outdir
         run: echo "WREMNANTS_OUTDIR=/tmp/${USER}/$(uuidgen)" >> $GITHUB_ENV
@@ -203,7 +201,7 @@ jobs:
 
       - name: wmass analysis
         run: >-
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/histmakers/mw_with_mu_eta_pt.py --dataPath $DATAPATH 
+          python scripts/histmakers/mw_with_mu_eta_pt.py --dataPath $DATAPATH 
           --analysisMode unfolding --poiAsNoi -j $((NTHREADS)) --maxFiles $((MAX_FILES)) --forceDefaultName -o $WREMNANTS_OUTDIR --postfix unfolding 
 
   w-unfolding:
@@ -231,44 +229,44 @@ jobs:
 
       - name: wmass plot response matrix
         run: >-
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/plotting/response_matrix.py 
+          python scripts/plotting/response_matrix.py 
           --axes "pt-ptGen" "abs(eta)-absEtaGen" --procFilters Wmunu -p mw -o $WEB_DIR -f $PLOT_DIR $HIST_FILE --histName yieldsUnfolding
 
       - name: wmass combine setup
         run: >-
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/setupCombine.py
+          python scripts/combine/setupCombine.py
           --analysisMode unfolding --poiAsNoi -i $HIST_FILE --lumiScale $LUMI_SCALE -o $WREMNANTS_OUTDIR --postfix unfolding
           --scaleNormXsecHistYields '0.01' --genAxes qGen-ptGen-absEtaGen
 
       - name: wmass combine fit
         run: >- 
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh narf/scripts/fitting/combinetf2.py 
+          python narf/scripts/fitting/combinetf2.py 
           $WREMNANTS_OUTDIR/WMass_eta_pt_charge_unfolding/WMass.hdf5 -o $WREMNANTS_OUTDIR/WMass_eta_pt_charge_unfolding/fitresults.hdf5 
           --binByBinStat --doImpacts
 
       - name: wmass unfolding plot pulls 
         run: >-
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/pullsAndImpacts.py 
+          python scripts/combine/pullsAndImpacts.py 
           -f ${WREMNANTS_OUTDIR}/WMass_eta_pt_charge_unfolding/fitresults.hdf5 -m ungrouped --sortDescending -s constraint --debug --noImpacts
           output --outFolder $WEB_DIR/$PLOT_DIR -o pulls_unfolding_mw.html -n 50 --otherExtensions png pdf
 
       - name: wmass combine xsec setup
         run: >-
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/setupCombine.py
+          python scripts/combine/setupCombine.py
           --analysisMode unfolding --poiAsNoi -i $HIST_FILE --lumiScale $LUMI_SCALE -o $WREMNANTS_OUTDIR --postfix unfolding
           --baseName xnorm --filterProcGroups Wmunu
           --scaleNormXsecHistYields '0.01' --fitvar qGen-ptGen-absEtaGen --genAxes qGen-ptGen-absEtaGen
 
       - name: wmass combine unfolded xsec
         run: >- 
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh narf/scripts/fitting/combinetf2.py 
+          python narf/scripts/fitting/combinetf2.py 
           $WREMNANTS_OUTDIR/WMass_qGen_ptGen_absEtaGen_unfolding/Combination.hdf5 -o $WREMNANTS_OUTDIR/WMass_qGen_ptGen_absEtaGen_unfolding/fitresults.hdf5
           --externalPostfit $WREMNANTS_OUTDIR/WMass_eta_pt_charge_unfolding/fitresults.hdf5
           --saveHists --computeHistErrors
 
       - name: wmass unfolding plot xsec 
         run: >-
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/plotting/unfolding_xsec.py 
+          python scripts/plotting/unfolding_xsec.py 
           ${WREMNANTS_OUTDIR}/WMass_qGen_ptGen_absEtaGen_unfolding/fitresults.hdf5
           --histfile $HIST_FILE --varNames uncorr --varLabels MiNNLO -o $WEB_DIR -f $PLOT_DIR -v 4 --rrange 0.9 1.1 --logy
           -t 'utilities/styles/nuisance_translate.json' --grouping max
@@ -296,24 +294,24 @@ jobs:
 
       - name: wmass theoryfit combine setup
         run: >-
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/setupCombine.py -i $HIST_FILE 
+          python scripts/combine/setupCombine.py -i $HIST_FILE 
           --fitresult ${WREMNANTS_OUTDIR}/WMass_eta_pt_charge_unfolding/fitresults.hdf5 --fitvar qGen-ptGen-absEtaGen 
           -o $WREMNANTS_OUTDIR --postfix theoryfit
 
       - name: wmass combine fit 
         run: >- 
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh narf/scripts/fitting/combinetf2.py 
+          python narf/scripts/fitting/combinetf2.py 
           $WREMNANTS_OUTDIR/WMass_qGen_ptGen_absEtaGen_theoryfit/WMass.hdf5 -o $WREMNANTS_OUTDIR/WMass_qGen_ptGen_absEtaGen_theoryfit/fitresults.hdf5
           --doImpacts --globalImpacts --saveHists --saveHistErrors --chisqFit --externalCovariance
 
       - name: wmass theoryfit impacts
         run: >-
-          scripts/ci/run_with_singularity.sh scripts/ci/show_impacts.sh 
+          source scripts/ci/show_impacts.sh 
           $WREMNANTS_OUTDIR/WMass_qGen_ptGen_absEtaGen_theoryfit/fitresults.hdf5 $WEB_DIR/$PLOT_DIR impactsW.html
 
       - name: wmass theoryfit plot prepostfit
         run: >-
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/plotting/unfolding_plots.py 
+          python scripts/plotting/unfolding_plots.py 
           $HIST_FILE --fitresult $WREMNANTS_OUTDIR/WMass_qGen_ptGen_absEtaGen_theoryfit/fitresults.hdf5 -o $WEB_DIR -f $PLOT_DIR 
           -n xnorm --plots prefit postfit -v 4 --rrange 0.9 1.1 --lumi=$LUMI_SCALE
 
@@ -353,7 +351,7 @@ jobs:
         if: github.event_name == 'pull_request' || github.event.schedule == '30 5 * * 1-5'
 
         run: >-
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/histmakers/mz_wlike_with_mu_eta_pt.py --dataPath $DATAPATH 
+          python scripts/histmakers/mz_wlike_with_mu_eta_pt.py --dataPath $DATAPATH 
           --analysisMode unfolding -j $((NTHREADS)) --maxFiles $((MAX_FILES)) --forceDefaultName -o $WREMNANTS_OUTDIR --postfix unfolding 
           --pt 8 26 58 --eta 12 -2.4 2.4 --genBins 4 3
 
@@ -361,7 +359,7 @@ jobs:
         # run with full binning
         if: github.event_name != 'pull_request' && github.event.schedule != '30 5 * * 1-5'
         run: >-
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/histmakers/mz_wlike_with_mu_eta_pt.py --dataPath $DATAPATH 
+          python scripts/histmakers/mz_wlike_with_mu_eta_pt.py --dataPath $DATAPATH 
           --analysisMode unfolding -j $((NTHREADS)) --maxFiles $((MAX_FILES)) --forceDefaultName -o $WREMNANTS_OUTDIR --postfix unfolding
 
 
@@ -390,38 +388,38 @@ jobs:
 
       - name: wlike plot response matrix
         run: >-
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/plotting/response_matrix.py 
+          python scripts/plotting/response_matrix.py 
           --axes "pt-ptGen" "abs(eta)-absEtaGen" --procFilters Zmumu -p mz_wlike -o $WEB_DIR -f $PLOT_DIR $HIST_FILE
 
       - name: wlike combine unfolding setup
         run: >-
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/setupCombine.py 
+          python scripts/combine/setupCombine.py 
           --analysisMode unfolding  --poiAsNoi -i $HIST_FILE --lumiScale $LUMI_SCALE -o $WREMNANTS_OUTDIR --postfix unfolding
           --scaleNormXsecHistYields '0.01' --genAxes qGen-ptGen-absEtaGen
 
       - name: wlike combine unfolding fit 
         run: >-
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh narf/scripts/fitting/combinetf2.py 
+          python narf/scripts/fitting/combinetf2.py 
           $WREMNANTS_OUTDIR/ZMassWLike_eta_pt_charge_unfolding/ZMassWLike.hdf5 -o $WREMNANTS_OUTDIR/ZMassWLike_eta_pt_charge_unfolding/fitresults.hdf5
           --binByBinStat --doImpacts
 
       - name: wlike combine xsec setup
         run: >-
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/setupCombine.py
+          python scripts/combine/setupCombine.py
           --analysisMode unfolding --poiAsNoi -i $HIST_FILE --lumiScale $LUMI_SCALE -o $WREMNANTS_OUTDIR --postfix unfolding
           --baseName xnorm --filterProcGroups Zmumu
           --scaleNormXsecHistYields '0.01' --fitvar qGen-ptGen-absEtaGen --genAxes qGen-ptGen-absEtaGen
 
       - name: wlike combine unfolded xsec
         run: >- 
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh narf/scripts/fitting/combinetf2.py 
+          python narf/scripts/fitting/combinetf2.py 
           $WREMNANTS_OUTDIR/ZMassWLike_qGen_ptGen_absEtaGen_unfolding/Combination.hdf5 -o $WREMNANTS_OUTDIR/ZMassWLike_qGen_ptGen_absEtaGen_unfolding/fitresults.hdf5
           --externalPostfit $WREMNANTS_OUTDIR/ZMassWLike_eta_pt_charge_unfolding/fitresults.hdf5
           --saveHists --computeHistErrors
 
       - name: wlike unfolding plot xsec 
         run: >-
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/plotting/unfolding_xsec.py $WREMNANTS_OUTDIR/ZMassWLike_qGen_ptGen_absEtaGen_unfolding/fitresults.hdf5 
+          python scripts/plotting/unfolding_xsec.py $WREMNANTS_OUTDIR/ZMassWLike_qGen_ptGen_absEtaGen_unfolding/fitresults.hdf5 
           --histfile $HIST_FILE --varNames uncorr --varLabels MiNNLO 
           -o $WEB_DIR -f $PLOT_DIR -v 4 --rrange 0.9 1.1 -t 'utilities/styles/nuisance_translate.json' --grouping min
 
@@ -452,24 +450,24 @@ jobs:
 
       - name: wlike theoryfit combine setup
         run: >-
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/setupCombine.py -i $HIST_FILE 
+          python scripts/combine/setupCombine.py -i $HIST_FILE 
           --fitresult ${WREMNANTS_OUTDIR}/ZMassWLike_eta_pt_charge_unfolding/fitresults.hdf5 --fitvar qGen-ptGen-absEtaGen 
           -o $WREMNANTS_OUTDIR --postfix theoryfit
 
       - name: wlike theoryfit combine fit 
         run: >- 
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh narf/scripts/fitting/combinetf2.py 
+          python narf/scripts/fitting/combinetf2.py 
           $WREMNANTS_OUTDIR/ZMassWLike_qGen_ptGen_absEtaGen_theoryfit/ZMassWLike.hdf5 -o $WREMNANTS_OUTDIR/ZMassWLike_qGen_ptGen_absEtaGen_theoryfit/fitresults.hdf5
           --doImpacts --globalImpacts --saveHists --saveHistErrors --chisqFit --externalCovariance
 
       - name: wlike theoryfit impacts
         run: >-
-          scripts/ci/run_with_singularity.sh scripts/ci/show_impacts.sh 
+          source scripts/ci/show_impacts.sh 
           $WREMNANTS_OUTDIR/ZMassWLike_qGen_ptGen_absEtaGen_theoryfit/fitresults.hdf5 $WEB_DIR/$PLOT_DIR impactsWlike.html
 
       - name: wlike theoryfit plot prepostfit
         run: >-
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/plotting/unfolding_plots.py 
+          python scripts/plotting/unfolding_plots.py 
           $HIST_FILE --fitresult $WREMNANTS_OUTDIR/ZMassWLike_qGen_ptGen_absEtaGen_theoryfit/fitresults.hdf5 -o $WEB_DIR -f $PLOT_DIR 
           -n xnorm --plots prefit postfit -v 4 --rrange 0.9 1.1 --lumi=$LUMI_SCALE
 
@@ -507,14 +505,14 @@ jobs:
         # run with a reduced binning
         if: github.event_name == 'pull_request' || github.event.schedule == '30 5 * * 1-5'
         run: >-
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/histmakers/mz_dilepton.py --dataPath $DATAPATH
+          python scripts/histmakers/mz_dilepton.py --dataPath $DATAPATH
           --analysisMode unfolding -j $((NTHREADS)) --maxFiles $((MAX_FILES)) --forceDefaultName -o $WREMNANTS_OUTDIR --axes ptll yll --postfix unfolding --genAxes ptVGen
 
       - name: dilepton analysis
         # run with full binning
         if: github.event_name != 'pull_request' && github.event.schedule != '30 5 * * 1-5'
         run: >-
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/histmakers/mz_dilepton.py --dataPath $DATAPATH
+          python scripts/histmakers/mz_dilepton.py --dataPath $DATAPATH
           --analysisMode unfolding -j $((NTHREADS)) --maxFiles $((MAX_FILES)) --forceDefaultName -o $WREMNANTS_OUTDIR --axes ptll yll --postfix unfolding
 
 
@@ -548,42 +546,42 @@ jobs:
 
       - name: dilepton plot response matrix
         run: >-
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/plotting/response_matrix.py 
+          python scripts/plotting/response_matrix.py 
           --axes ptll-ptVGen --procFilters Zmumu -p mz -o $WEB_DIR -f $PLOT_DIR $HIST_FILE
 
       - name: dilepton combine ptll unfolding setup
         run: >-
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/setupCombine.py 
+          python scripts/combine/setupCombine.py 
           --analysisMode unfolding -i $HIST_FILE --fitvar ptll-yll --genAxes ptVGen-absYVGen --lumiScale $LUMI_SCALE -o $WREMNANTS_OUTDIR --postfix unfolding
 
       - name: dilepton combine ptll unfolding fit
         run: >- 
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh narf/scripts/fitting/combinetf2.py 
+          python narf/scripts/fitting/combinetf2.py 
           $WREMNANTS_OUTDIR/ZMassDilepton_ptll_yll_unfolding/ZMassDilepton.hdf5 -o $WREMNANTS_OUTDIR/ZMassDilepton_ptll_yll_unfolding/fitresults.hdf5
           --binByBinStat --doImpacts --globalImpacts --saveHists --saveHistErrors
 
       - name: dilepton combine ptll xsec setup
         run: >-
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/setupCombine.py 
+          python scripts/combine/setupCombine.py 
           --analysisMode unfolding -i $HIST_FILE --lumiScale $LUMI_SCALE -o $WREMNANTS_OUTDIR --postfix unfolding
           --fitvar ptVGen-absYVGen --genAxes ptVGen-absYVGen --baseName xnorm --filterProcGroups Zmumu
 
       - name: dilepton combine ptll unfolded xsec
         run: >- 
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh narf/scripts/fitting/combinetf2.py 
+          python narf/scripts/fitting/combinetf2.py 
           $WREMNANTS_OUTDIR/ZMassDilepton_ptVGen_absYVGen_unfolding/Combination.hdf5 -o $WREMNANTS_OUTDIR/ZMassDilepton_ptVGen_absYVGen_unfolding/fitresults.hdf5
           --externalPostfit $WREMNANTS_OUTDIR/ZMassDilepton_ptll_yll_unfolding/fitresults.hdf5
           --saveHists --computeHistErrors
 
       - name: dilepton unfolding plot pulls 
         run: >-
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/pullsAndImpacts.py 
+          python scripts/combine/pullsAndImpacts.py 
           -f $WREMNANTS_OUTDIR/ZMassDilepton_ptll_yll_unfolding/fitresults.hdf5 -m ungrouped --sortDescending -s constraint --debug --noImpacts
           output --outFolder $WEB_DIR/$PLOT_DIR -o pulls_unfolding_ptll.html -n 50 --otherExtensions png pdf
 
       - name: dilepton unfolding plot xsec 
         run: >- 
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/plotting/unfolding_xsec.py $WREMNANTS_OUTDIR/ZMassDilepton_ptll_yll_unfolding/fitresults.hdf5 
+          python scripts/plotting/unfolding_xsec.py $WREMNANTS_OUTDIR/ZMassDilepton_ptll_yll_unfolding/fitresults.hdf5 
           --histfile $HIST_FILE --varNames scetlib_dyturboCorr --varLabels SCETLib $Omega_\nu=0.5$ --selectAxis vars --selectEntries 'omega_nu0.5'
           -o $WEB_DIR -f $PLOT_DIR -v 4 --rrange 0.9 1.1 --logy -t 'utilities/styles/nuisance_translate.json' --grouping max
 
