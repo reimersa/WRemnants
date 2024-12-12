@@ -713,8 +713,14 @@ def make_parser(parser=None):
 
 
 def setup(
-    args, inputFile, inputBaseName, inputLumiScale, fitvar, genvar=None, xnorm=False
+    args,
+    inputFile,
+    inputBaseName,
+    inputLumiScale,
+    fitvar,
+    genvar=None,
 ):
+    xnorm = inputBaseName == "xnorm"
 
     isUnfolding = args.analysisMode == "unfolding"
     isTheoryAgnostic = args.analysisMode in [
@@ -804,8 +810,10 @@ def setup(
     if args.fitXsec:
         datagroups.unconstrainedProcesses.append(base_group)
 
-    if lowPU and (
-        (args.fakeEstimation != "simple") or (args.fakeSmoothingMode != "binned")
+    if (
+        lowPU
+        and not xnorm
+        and ((args.fakeEstimation != "simple") or (args.fakeSmoothingMode != "binned"))
     ):
         logger.error(
             f"When running lowPU mode, fakeEstimation should be set to 'simple' and fakeSmoothingMode set to 'binned'."
@@ -837,28 +845,26 @@ def setup(
 
     if xnorm:
         datagroups.select_xnorm_groups(base_group)
-        datagroups.globalAction = (
-            None  # reset global action in case of rebinning or such
-        )
-        if isPoiAsNoi or not isUnfolding:
-            # creating the xnorm model (e.g. for the theory fit)
-            if wmass and "qGen" in fitvar:
-                # add gen charge as additional axis
-                datagroups.groups[base_group].memberOp = [
-                    (
-                        lambda h, m=member: hh.addGenChargeAxis(
-                            h, idx=0 if "minus" in m.name else 1
-                        )
+
+    if (xnorm and isPoiAsNoi) or isUnfolding:
+        # adding charge axis
+        if wmass and "qGen" in fitvar or (genvar is not None and "qGen" in genvar):
+            # add gen charge as additional axis
+            datagroups.groups[base_group].memberOp = [
+                (
+                    lambda h, m=member: hh.addGenChargeAxis(
+                        h, idx=0 if "minus" in m.name else 1
                     )
-                    for member in datagroups.groups[base_group].members
-                ]
-                xnorm_axes = ["qGen", *datagroups.gen_axes_names]
-            else:
-                xnorm_axes = datagroups.gen_axes_names[:]
-            datagroups.setGenAxes(
-                sum_gen_axes=[a for a in xnorm_axes if a not in fitvar],
-                base_group=base_group,
-            )
+                )
+                for member in datagroups.groups[base_group].members
+            ]
+            xnorm_axes = ["qGen", *datagroups.gen_axes_names]
+        else:
+            xnorm_axes = datagroups.gen_axes_names[:]
+        datagroups.setGenAxes(
+            sum_gen_axes=[a for a in xnorm_axes if a not in fitvar],
+            base_group=base_group,
+        )
 
     if isPoiAsNoi:
         constrainMass = False if isTheoryAgnostic else True
@@ -920,34 +926,17 @@ def setup(
         constrainMass = False if isTheoryAgnostic else True
         datagroups.setGenAxes(genvar, base_group=base_group)
         logger.info(f"GEN axes are {genvar}")
-        if wmass and "qGen" in datagroups.gen_axes_names:
-            # gen level bins, split by charge
-            if "minus" in args.recoCharge:
-                datagroups.defineSignalBinsUnfolding(
-                    base_group,
-                    f"W_qGen0",
-                    member_filter=lambda x: x.name.startswith("Wminus")
-                    and not x.name.endswith("OOA"),
-                    axesNamesToRead=[
-                        ax for ax in datagroups.gen_axes_names if ax != "qGen"
-                    ],
-                )
-            if "plus" in args.recoCharge:
-                datagroups.defineSignalBinsUnfolding(
-                    base_group,
-                    f"W_qGen1",
-                    member_filter=lambda x: x.name.startswith("Wplus")
-                    and not x.name.endswith("OOA"),
-                    axesNamesToRead=[
-                        ax for ax in datagroups.gen_axes_names if ax != "qGen"
-                    ],
-                )
-        else:
-            datagroups.defineSignalBinsUnfolding(
-                base_group,
-                base_group[0],
-                member_filter=lambda x: not x.name.endswith("OOA"),
-            )
+
+        datagroups.sum_gen_axes = [
+            n for n in datagroups.sum_gen_axes if n not in fitvar
+        ]
+
+        datagroups.defineSignalBinsUnfolding(
+            base_group,
+            base_group[0],
+            member_filter=lambda x: not x.name.endswith("OOA"),
+            fitvar=fitvar,
+        )
 
         # out of acceptance contribution
         to_del = [
@@ -1029,24 +1018,6 @@ def setup(
     else:
         cardTool.setHistName(inputBaseName)
         cardTool.setNominalName(inputBaseName)
-
-    if isUnfolding and isPoiAsNoi:
-        cardTool.addXsecGroups()
-
-    # define sumGroups for integrated cross section
-    if not args.skipSumGroups and (isUnfolding or isTheoryAgnostic):
-        # TODO: make this less hardcoded to filter the charge (if the charge is not present this will duplicate things)
-        if isTheoryAgnostic and wmass and "qGen" in datagroups.gen_axes_names:
-            if "plus" in args.recoCharge:
-                cardTool.addSumXsecGroups(genCharge="qGen1")
-            if "minus" in args.recoCharge:
-                cardTool.addSumXsecGroups(genCharge="qGen0")
-        else:
-            cardTool.addSumXsecGroups(
-                all_param_names=(
-                    cardTool.cardXsecGroups if isUnfolding and isPoiAsNoi else None
-                )
-            )
 
     if args.noHist:
         cardTool.skipHistograms()
@@ -2411,7 +2382,6 @@ if __name__ == "__main__":
             iLumiScale,
             fitvar,
             genvar,
-            xnorm=args.fitresult is not None or args.baseName == "xnorm",
         )
         outnames.append(
             (
@@ -2423,15 +2393,6 @@ if __name__ == "__main__":
         )
 
         writer.add_channel(cardTool)
-        if isFloatingPOIs or isUnfolding:
-            fitvar = genvar if isPoiAsNoi else ["count"]
-            cardTool = setup(args, ifile, iBaseName, iLumiScale, fitvar, xnorm=True)
-            writer.add_channel(cardTool)
-
-    if not args.skipSumGroups:
-        combine_helpers.add_ratio_xsec_groups(writer)
-        combine_helpers.add_asym_xsec_groups(writer)
-        combine_helpers.add_helicty_xsec_groups(writer)
 
     if args.fitresult:
         writer.set_fitresult(

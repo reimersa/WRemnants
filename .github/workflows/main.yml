@@ -506,13 +506,31 @@ jobs:
 
       - name: lowpu combine unfolding setup
         run: >- 
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/setupCombine.py --fakeEstimation simple --fakeSmoothingMode binned
-          --analysisMode unfolding -i $HIST_FILE_MU $HIST_FILE_E $HIST_FILE_MUMU $HIST_FILE_EE --fitvar ptW-charge ptW-charge ptll ptll -o $COMBINED_DIR --postfix ptll --sparse --ewUnc
+          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/setupCombine.py 
+          --fakeEstimation simple --fakeSmoothingMode binned --ewUnc --analysisMode unfolding
+          --fitvar ptVGen-qGen ptVGen-qGen ptVGen ptVGen --genAxes ptVGen-qGen ptVGen-qGen ptVGen ptVGen
+          -i $HIST_FILE_MU $HIST_FILE_E $HIST_FILE_MUMU $HIST_FILE_EE -o $COMBINED_DIR --postfix ptll 
 
       - name: lowpu combine unfolding fit 
-        run: cmssw-cc7 --command-to-run scripts/ci/run_combine.sh /home/c/cmsmwbot/combinetf/CMSSW_10_6_30/src/ unfolding $COMBINED_DIR/Combination_WMass_lowPUZMass_lowPU_ptll Combination.hdf5
+        run: >- 
+          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh narf/scripts/fitting/combinetf2.py 
+          $COMBINED_DIR/Combination_WMass_lowPUZMass_lowPU_ptll/Combination.hdf5 --binByBinStat -o $COMBINED_DIR/Combination_WMass_lowPUZMass_lowPU_ptll/fitresults.hdf5
 
-      - name: lowpu combine unfolding plot xsec 
+      - name: lowpu combine xsec setup
+        run: >- 
+          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/setupCombine.py 
+          --ewUnc --baseName xnorm --filterProcGroups Zmumu Zee Wmunu Wenu --analysisMode unfolding
+          --fitvar ptVGen-qGen ptVGen-qGen ptVGen ptVGen --genAxes ptVGen-qGen ptVGen-qGen ptVGen ptVGen
+          -i $HIST_FILE_MU $HIST_FILE_E $HIST_FILE_MUMU $HIST_FILE_EE -o $COMBINED_DIR --postfix ptVGen
+
+      - name: lowpu combine unfolded xsec
+        run: >- 
+          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh narf/scripts/fitting/combinetf2.py 
+          $COMBINED_DIR/Combination_WMass_lowPUZMass_lowPU_ptVGen/Combination.hdf5 -o $COMBINED_DIR/Combination_WMass_lowPUZMass_lowPU_ptVGen/fitresults.hdf5
+          --externalPostfit $COMBINED_DIR/Combination_WMass_lowPUZMass_lowPU_ptll/fitresults.hdf5
+          --saveHists --computeHistErrors
+
+      - name: lowpu combine unfolded xsec plot
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/plotting/unfolding_xsec.py
           $COMBINED_DIR/Combination_WMass_lowPUZMass_lowPU_ptll/fitresults.hdf5 -o $WEB_DIR -f $PLOT_DIR/lowPU -v 4 --rrange 0.0 2.0
