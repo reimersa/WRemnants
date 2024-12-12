@@ -973,14 +973,6 @@ def setup(
 
     cardTool.setFitAxes(fitvar)
 
-    if args.sumChannels or xnorm or dilepton or "charge" not in fitvar:
-        cardTool.setWriteByCharge(False)
-    else:
-        cardTool.setChannels(args.recoCharge)
-        if (isUnfolding or isTheoryAgnostic) and args.forceRecoChargeAsGen:
-            cardTool.setExcludeProcessForChannel("plus", ".*qGen0")
-            cardTool.setExcludeProcessForChannel("minus", ".*qGen1")
-
     if xnorm:
         histName = "xnorm"
         cardTool.setHistName(histName)
@@ -991,7 +983,7 @@ def setup(
 
     if args.noHist:
         cardTool.skipHistograms()
-    cardTool.setSpacing(28)
+
     label = "W" if wmass else "Z"
     cardTool.setCustomSystGroupMapping(
         {

@@ -34,7 +34,6 @@ class CardTool(object):
         )
         self.systematics = {}
         self.fakeEstimate = None
-        self.channels = ["inclusive"]
         self.cardGroups = {}
         self.nominalName = "nominal"
         self.datagroups = None
@@ -59,9 +58,6 @@ class CardTool(object):
         self.fit_axes = None
         self.xnorm = xnorm
         self.real_data = real_data
-        self.excludeProcessForChannel = (
-            {}
-        )  # can be used to exclue some POI when runnig a specific name (use case, force gen and reco charges to match)
         self.charge_ax = "charge"
         self.procGroups = {}
         self.binByBinStatScale = 1.0
@@ -98,10 +94,6 @@ class CardTool(object):
             logger.info(
                 "Attention: histograms are not saved according to input options, thus statistical uncertainty won't be zeroed"
             )
-
-    def setExcludeProcessForChannel(self, channel, POIregexp, canUpdate=False):
-        if canUpdate or channel not in self.excludeProcessForChannel.keys():
-            self.excludeProcessForChannel[channel] = re.compile(POIregexp)
 
     def setFitAxes(self, axes):
         self.fit_axes = axes[:]
@@ -216,9 +208,6 @@ class CardTool(object):
         self.pseudodata_datagroups = datagroups
         if self.nominalName:
             self.pseudodata_datagroups.setNominalName(self.nominalName)
-
-    def setChannels(self, channels):
-        self.channels = channels
 
     def predictedProcesses(self):
         return list(
@@ -1017,3 +1006,6 @@ class CardTool(object):
         issig = np.isin(nondata, self.unconstrainedProcesses)
         labels[issig] = -np.arange(np.count_nonzero(issig)) - 1
         return labels
+
+    def match_str_axis_entries(self, str_axis, match_re):
+        return [x for x in str_axis if any(re.match(r, x) for r in match_re)]
