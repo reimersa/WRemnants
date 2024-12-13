@@ -91,3 +91,14 @@ def get_pulls_and_constraints(fitresult):
     pulls_prefit = np.zeros_like(pulls, dtype=float)
 
     return pulls, constraints, pulls_prefit
+
+
+def get_theoryfit_data(fitresult):
+    logger.info(
+        f"Prepare theory fit: load measured differential cross secction distribution and covariance matrix"
+    )
+
+    h_data = {k: h for k, h in fitresult["hist_postfit_inclusive"].items()}
+    h_cov = fitresult["hist_cov_postfit_inclusive"]
+
+    return h_data, h_cov

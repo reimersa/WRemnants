@@ -10,7 +10,7 @@ import numpy as np
 import narf
 from utilities import common, logging
 from utilities.h5pyutils import writeFlatInChunks, writeSparse
-from utilities.io_tools import combinetf_input
+from utilities.io_tools import combinetf2_input
 
 logger = logging.child_logger(__name__)
 
@@ -83,34 +83,18 @@ class HDF5Writer(object):
             self.dict_logkavg[channel] = {p: {} for p in processes}
             self.dict_logkhalfdiff[channel] = {p: {} for p in processes}
 
-    def set_fitresult(
-        self, fitresult_filename, poi_type="pmaskedexp", gen_flow=False, mc_stat=True
-    ):
-        if poi_type != "pmaskedexp":
-            raise NotImplementedError(
-                "Theoryfit currently only supported for poi_type='pmaskedexp'"
-            )
+    def set_fitresult(self, fitresult_filename, mc_stat=True):
         if len(self.get_channels()) > 1:
             logger.warning(
                 "Theoryfit for more than one channels is currently experimental"
             )
         self.theoryFit = True
         self.theoryFitMCStat = mc_stat
-        base_processes = [
-            "W" if c.datagroups.mode == "w_mass" else "Z"
-            for c in self.get_channels().values()
-        ]
-        axes = [c.fit_axes for c in self.get_channels().values()]
-        fitresult = combinetf_input.get_fitresult(fitresult_filename)
-        data, self.theoryFitDataCov = combinetf_input.get_theoryfit_data(
-            fitresult,
-            axes=axes,
-            base_processes=base_processes,
-            poi_type=poi_type,
-            flow=gen_flow,
+
+        fitresult, meta = combinetf2_input.get_fitresult(fitresult_filename, meta=True)
+        self.theoryFitData, self.theoryFitDataCov = combinetf2_input.get_theoryfit_data(
+            fitresult
         )
-        # theoryfit data for each channel
-        self.theoryFitData = {c: d for c, d in zip(self.get_channels().keys(), data)}
 
     def add_channel(self, cardTool, name=None):
         if name is None:
@@ -138,14 +122,16 @@ class HDF5Writer(object):
             )
         return list(common.natural_sort(bkgs))
 
-    def get_flat_values(self, h, chanInfo, axes, return_variances=True, flow=False):
+    def get_flat_values(
+        self, h, chanInfo=None, axes=None, return_variances=True, flow=False
+    ):
         # check if variances are available
         if return_variances and (h.storage_type != hist.storage.Weight):
             logger.warning(
                 f"Sumw2 not filled for {h} but needed for binByBin uncertainties, variances are set to 0"
             )
 
-        if h.axes.name != axes:
+        if axes is not None and h.axes.name != axes:
             h = h.project(*axes)
 
         if return_variances:
@@ -157,6 +143,13 @@ class HDF5Writer(object):
             return val, var
         else:
             return h.values(flow=flow).flatten().astype(self.dtype)
+
+    def get_flat_cov(self, h, flow=False):
+        h = h.values(flow=flow).astype(self.dtype)
+        naxes = int(len(h.shape) / 2)
+        nbins = np.product(h.shape[:naxes])
+        h = h.reshape(nbins, nbins)
+        return h
 
     def write(
         self,
@@ -345,7 +338,12 @@ class HDF5Writer(object):
                 and self.theoryFitData is not None
                 and self.theoryFitDataCov is not None
             ):
-                data_obs = self.theoryFitData[chan]
+                h_data_obs = self.theoryFitData[chan].get()
+
+                data_obs = self.get_flat_values(
+                    h_data_obs, chanInfo, axes, return_variances=False
+                )
+
             elif chanInfo.real_data and dg.dataName in dg.groups:
                 data_obs_hist = dg.groups[dg.dataName].hists[chanInfo.nominalName]
                 data_obs = self.get_flat_values(
@@ -883,7 +881,8 @@ class HDF5Writer(object):
         pseudodata = None
 
         if self.theoryFitDataCov is not None:
-            data_cov = self.theoryFitDataCov
+            data_cov = self.get_flat_cov(self.theoryFitDataCov.get())
+
             if data_cov.shape != (nbins, nbins):
                 raise RuntimeError(
                     f"covariance matrix has incompatible shape of {data_cov.shape}, expected is {(nbins,nbins)}!"

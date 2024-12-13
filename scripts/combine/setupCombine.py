@@ -860,7 +860,7 @@ def setup(
     if xnorm:
         datagroups.select_xnorm_groups(base_group)
 
-    if (xnorm and isPoiAsNoi) or isUnfolding:
+    if xnorm or (isUnfolding and not isPoiAsNoi):
         # adding charge axis
         if wmass and "qGen" in fitvar or (genvar is not None and "qGen" in genvar):
             # add gen charge as additional axis

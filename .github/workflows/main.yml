@@ -533,9 +533,8 @@ jobs:
       - name: lowpu combine unfolded xsec plot
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/plotting/postfitPlots.py 
-          $COMBINED_DIR/Combination_WMass_lowPUZMass_lowPU_ptVgen/fitresults.hdf5 -o $WEB_DIR -f $PLOT_DIR/lowPU 
+          $COMBINED_DIR/Combination_WMass_lowPUZMass_lowPU_ptVGen/fitresults.hdf5 -o $WEB_DIR -f $PLOT_DIR/lowPU 
           --rrange 0.0 2.0 --unfoldedXsec --noUncertainty --noChisq --legCols 1 --noSciy --logoPos 0
-
 
   wlike:
     # The type of runner that the job will run on

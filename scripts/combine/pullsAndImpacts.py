@@ -96,7 +96,7 @@ def plotImpacts(
     show_legend=True,
     legend_pos="bottom",
 ):
-    impacts = bool(np.count_nonzero(df["absimpact"])) and impacts
+    impacts = impacts and bool(np.count_nonzero(df["absimpact"]))
     ncols = pulls + impacts
     fig = make_subplots(rows=1, cols=ncols, horizontal_spacing=0.1, shared_yaxes=True)
 
@@ -497,6 +497,7 @@ def readFitInfoFromFile(
             impacts = impacts[mask]
 
         df["impact"] = impacts * scale
+        df["absimpact"] = np.abs(df["impact"])
 
     if saveForHepdata and not group:
         convert_hepdata_json = (
@@ -516,7 +517,6 @@ def readFitInfoFromFile(
         df["label_hepdata"] = labels_hepdata
         logger.warning("HEPData labels were created")
 
-    df["absimpact"] = np.abs(df["impact"])
     if not group:
         if apply_mask:
             pulls = pulls[mask]

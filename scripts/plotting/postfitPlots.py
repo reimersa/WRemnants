@@ -257,15 +257,15 @@ def make_plot(
 ):
     axes_names = [a.name for a in axes]
 
-    if any(x in axes_names for x in ["ptll", "mll", "ptVgen", "ptVGen", "pt"]):
+    binwnorm = 1.0
+
+    if any(x.startswith("pt") or x.startswith("mll") for x in axes_names):
         # in case of variable bin width normalize to unit
-        binwnorm = 1.0
         ylabel = (
             r"$Events\,/\,GeV$" if not args.unfoldedXsec else r"$d\sigma (pb\,/\,GeV)$"
         )
     else:
-        binwnorm = None
-        ylabel = r"$Events\,/\,bin$" if not args.unfoldedXsec else r"$d\sigma (pb)$"
+        ylabel = r"$Events\,/\,unit$" if not args.unfoldedXsec else r"$d\sigma (pb)$"
 
     if args.logTransform:
         ylabel = ylabel.replace("Events", "log(Events)")
