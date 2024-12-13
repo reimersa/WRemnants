@@ -21,7 +21,6 @@ from utilities.io_tools import (
     combinetf2_input,
     conversion_tools,
     hepdata_tools,
-    input_tools,
     output_tools,
 )
 from utilities.styles.styles import nuisance_groupings as groupings
