@@ -262,7 +262,7 @@ jobs:
       - name: wmass combine unfolded xsec
         run: >- 
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh narf/scripts/fitting/combinetf2.py 
-          $WREMNANTS_OUTDIR/WMass_qGen_ptGen_absEtaGen_unfolding/Combination.hdf5 -o $WREMNANTS_OUTDIR/WMass_qGen_ptGen_absEtaGen_unfolding/fitresults.hdf5
+          $WREMNANTS_OUTDIR/WMass_qGen_ptGen_absEtaGen_unfolding/WMass.hdf5 -o $WREMNANTS_OUTDIR/WMass_qGen_ptGen_absEtaGen_unfolding/fitresults.hdf5
           --externalPostfit $WREMNANTS_OUTDIR/WMass_eta_pt_charge_unfolding/fitresults.hdf5
           --saveHists --computeHistErrors --project ch0 ptGen --project ch0 absEtaGen 
 
@@ -305,7 +305,7 @@ jobs:
         run: >- 
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh narf/scripts/fitting/combinetf2.py 
           $WREMNANTS_OUTDIR/WMass_qGen_ptGen_absEtaGen_theoryfit/WMass.hdf5 -o $WREMNANTS_OUTDIR/WMass_qGen_ptGen_absEtaGen_theoryfit/fitresults.hdf5
-          --doImpacts --globalImpacts --saveHists --saveHistErrors --chisqFit --externalCovariance -t 0
+          --doImpacts --globalImpacts --saveHists --computeHistErrors --chisqFit --externalCovariance -t 0
 
       - name: wmass theoryfit impacts
         run: >-
@@ -391,8 +391,8 @@ jobs:
       - name: wlike combine unfolding setup
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/setupCombine.py 
-          --analysisMode unfolding  --poiAsNoi -i $HIST_FILE --lumiScale $LUMI_SCALE -o $WREMNANTS_OUTDIR --postfix unfolding
-          --scaleNormXsecHistYields '0.01' --genAxes qGen-ptGen-absEtaGen
+          --analysisMode unfolding -i $HIST_FILE --lumiScale $LUMI_SCALE -o $WREMNANTS_OUTDIR --postfix unfolding
+          --genAxes qGen-ptGen-absEtaGen --sparse
 
       - name: wlike combine unfolding fit 
         run: >-
@@ -403,14 +403,14 @@ jobs:
       - name: wlike combine xsec setup
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/setupCombine.py
-          --analysisMode unfolding --poiAsNoi -i $HIST_FILE --lumiScale $LUMI_SCALE -o $WREMNANTS_OUTDIR --postfix unfolding
+          --analysisMode unfolding -i $HIST_FILE --lumiScale $LUMI_SCALE -o $WREMNANTS_OUTDIR --postfix unfolding
           --baseName xnorm --filterProcGroups Zmumu
-          --scaleNormXsecHistYields '0.01' --fitvar qGen-ptGen-absEtaGen --genAxes qGen-ptGen-absEtaGen
+          --fitvar qGen-ptGen-absEtaGen --genAxes qGen-ptGen-absEtaGen
 
       - name: wlike combine unfolded xsec
         run: >- 
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh narf/scripts/fitting/combinetf2.py 
-          $WREMNANTS_OUTDIR/ZMassWLike_qGen_ptGen_absEtaGen_unfolding/Combination.hdf5 -o $WREMNANTS_OUTDIR/ZMassWLike_qGen_ptGen_absEtaGen_unfolding/fitresults.hdf5
+          $WREMNANTS_OUTDIR/ZMassWLike_qGen_ptGen_absEtaGen_unfolding/ZMassWLike.hdf5 -o $WREMNANTS_OUTDIR/ZMassWLike_qGen_ptGen_absEtaGen_unfolding/fitresults.hdf5
           --externalPostfit $WREMNANTS_OUTDIR/ZMassWLike_eta_pt_charge_unfolding/fitresults.hdf5
           --saveHists --computeHistErrors --project ch0 ptGen --project ch0 absEtaGen
 
@@ -456,7 +456,7 @@ jobs:
         run: >- 
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh narf/scripts/fitting/combinetf2.py 
           $WREMNANTS_OUTDIR/ZMassWLike_qGen_ptGen_absEtaGen_theoryfit/WMass.hdf5 -o $WREMNANTS_OUTDIR/ZMassWLike_qGen_ptGen_absEtaGen_theoryfit/fitresults.hdf5
-          --doImpacts --globalImpacts --saveHists --saveHistErrors --chisqFit --externalCovariance -t 0
+          --doImpacts --globalImpacts --saveHists --computeHistErrors --chisqFit --externalCovariance -t 0
 
       - name: wlike theoryfit impacts
         run: >-
@@ -546,25 +546,25 @@ jobs:
 
       - name: dilepton combine ptll unfolding setup
         run: >-
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/setupCombine.py 
-          --analysisMode unfolding -i $HIST_FILE --fitvar ptll-yll --genAxes ptVGen-absYVGen --lumiScale $LUMI_SCALE -o $WREMNANTS_OUTDIR --postfix unfolding
+          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/setupCombine.py -i $HIST_FILE --sparse
+          --analysisMode unfolding --fitvar ptll-yll --genAxes ptVGen-absYVGen --lumiScale $LUMI_SCALE -o $WREMNANTS_OUTDIR --postfix unfolding
 
       - name: dilepton combine ptll unfolding fit
         run: >- 
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh narf/scripts/fitting/combinetf2.py 
           $WREMNANTS_OUTDIR/ZMassDilepton_ptll_yll_unfolding/ZMassDilepton.hdf5 -o $WREMNANTS_OUTDIR/ZMassDilepton_ptll_yll_unfolding/fitresults.hdf5
-          --binByBinStat --doImpacts --globalImpacts --saveHists --saveHistErrors
+          --binByBinStat --doImpacts --globalImpacts --saveHists --computeHistErrors
 
       - name: dilepton combine ptll xsec setup
         run: >-
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/setupCombine.py 
-          --analysisMode unfolding -i $HIST_FILE --lumiScale $LUMI_SCALE -o $WREMNANTS_OUTDIR --postfix unfolding
+          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/setupCombine.py -i $HIST_FILE
+          --analysisMode unfolding --lumiScale $LUMI_SCALE -o $WREMNANTS_OUTDIR --postfix unfolding
           --fitvar ptVGen-absYVGen --genAxes ptVGen-absYVGen --baseName xnorm --filterProcGroups Zmumu
 
       - name: dilepton combine ptll unfolded xsec
         run: >- 
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh narf/scripts/fitting/combinetf2.py 
-          $WREMNANTS_OUTDIR/ZMassDilepton_ptVGen_absYVGen_unfolding/Combination.hdf5 -o $WREMNANTS_OUTDIR/ZMassDilepton_ptVGen_absYVGen_unfolding/fitresults.hdf5
+          $WREMNANTS_OUTDIR/ZMassDilepton_ptVGen_absYVGen_unfolding/ZMassDilepton.hdf5 -o $WREMNANTS_OUTDIR/ZMassDilepton_ptVGen_absYVGen_unfolding/fitresults.hdf5
           --externalPostfit $WREMNANTS_OUTDIR/ZMassDilepton_ptll_yll_unfolding/fitresults.hdf5
           --saveHists --computeHistErrors
 

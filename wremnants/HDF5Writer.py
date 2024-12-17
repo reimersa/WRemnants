@@ -144,13 +144,6 @@ class HDF5Writer(object):
         else:
             return h.values(flow=flow).flatten().astype(self.dtype)
 
-    def get_flat_cov(self, h, flow=False):
-        h = h.values(flow=flow).astype(self.dtype)
-        naxes = int(len(h.shape) / 2)
-        nbins = np.product(h.shape[:naxes])
-        h = h.reshape(nbins, nbins)
-        return h
-
     def write(
         self,
         args,
@@ -584,13 +577,7 @@ class HDF5Writer(object):
         if self.sparse:
             logger.info(f"Write out sparse array")
 
-            idxdtype = "int32"
-            maxsparseidx = max(nbinsfull * nproc, 2 * nsyst)
-            if maxsparseidx > np.iinfo(idxdtype).max:
-                logger.info(
-                    "sparse array shapes are too large for index datatype, switching to int64"
-                )
-                idxdtype = "int64"
+            idxdtype = "int64"
 
             norm_sparse_size = 0
             norm_sparse_indices = np.zeros([norm_sparse_size, 2], idxdtype)
@@ -881,7 +868,7 @@ class HDF5Writer(object):
         pseudodata = None
 
         if self.theoryFitDataCov is not None:
-            data_cov = self.get_flat_cov(self.theoryFitDataCov.get())
+            data_cov = self.theoryFitDataCov.get().values()
 
             if data_cov.shape != (nbins, nbins):
                 raise RuntimeError(
