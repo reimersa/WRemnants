@@ -41,21 +41,21 @@ jobs:
 
       - name: run isort
         run: |
-          scripts/ci/run_with_singularity.sh isort . --check-only --diff --skip narf --skip wremnants-data --profile black --line-length 88
+          scripts/ci/run_with_singularity.sh isort . --check-only --diff --skip narf --skip combinetf2 --skip wremnants-data --profile black --line-length 88
 
       - name: run Flake8
         run: >-
-          scripts/ci/run_with_singularity.sh flake8 . --exclude=narf,wremnants-data --max-line-length 88
+          scripts/ci/run_with_singularity.sh flake8 . --exclude=narf,combinetf2,wremnants-data --max-line-length 88
           --select=F401,F402,F403,F404,F405,F406,F407,F601,F602,F621,F622,F631,F632,F633,F634,F701,F702,F704,F706,F707,F721,F722,F723,F821,F822,F823,F831,F901
 
       - name: run Black
         run: |
-          scripts/ci/run_with_singularity.sh black --exclude '(^\.git|\.github|narf|wremnants-data)' --check .
+          scripts/ci/run_with_singularity.sh black --exclude '(^\.git|\.github|narf|combinetf2|wremnants-data)' --check .
 
       - name: check Python Files
         run: |
           # Find all Python files and check their syntax in parallel
-          find . -name '*.py' -not -path '*/narf/*' -not -path '*/wremnants-data/*' | \
+          find . -name '*.py' -not -path '*/narf/*' -not -path '*/combinetf2/*' -not -path '*/wremnants-data/*' | \
           xargs -P 16 -I {} bash -c '
             echo "Checking python file: {}"
             scripts/ci/run_with_singularity.sh python -m py_compile "{}" || \
@@ -65,7 +65,7 @@ jobs:
       - name: check JSON Files
         run: |
           # Find all JSON files and check their syntax
-          for FILE in $(find . -name '*.json' -not -path '*/narf/*' -not -path '*/wremnants-data/*'); do
+          for FILE in $(find . -name '*.json' -not -path '*/narf/*' -not -path '*/combinetf2/*' -not -path '*/wremnants-data/*'); do
             echo "Checking JSON file: $FILE"
             scripts/ci/run_with_singularity.sh python -m json.tool "$FILE" > /dev/null
             if [ $? -ne 0 ]; then
@@ -77,7 +77,7 @@ jobs:
       - name: check YAML Files
         run: |
           # Find all YAML files and check their syntax
-          for FILE in $(find . -name '*.yaml' -not -path '*/narf/*' -not -path '*/wremnants-data/*'); do
+          for FILE in $(find . -name '*.yaml' -not -path '*/narf/*' -not -path '*/combinetf2/*' -not -path '*/wremnants-data/*'); do
             echo "Checking YAML file: $FILE"
             scripts/ci/run_with_singularity.sh python -c "import yaml, sys; yaml.safe_load(open('$FILE'))" > /dev/null
             if [ $? -ne 0 ]; then
@@ -89,7 +89,7 @@ jobs:
       - name: check C++ Files
         run: |
           # Find all C++ files and check their syntax in parallel
-          find . \( -name '*.c' -o -name '*.cpp' -o -name '*.hpp' -o -name '*.h' \) -not -path '*/narf/*' -not -path '*/wremnants-data/*' | \
+          find . \( -name '*.c' -o -name '*.cpp' -o -name '*.hpp' -o -name '*.h' \) -not -path '*/narf/*' -not -path '*/combinetf2/*' -not -path '*/wremnants-data/*' | \
           xargs -P 16 -I {} bash -c '
             echo "Checking {}"
             scripts/ci/run_with_singularity.sh clang++ -I./narf/narf/include/ -I./wremnants/include/ -std=c++20 -fsyntax-only "{}" || \
@@ -242,7 +242,7 @@ jobs:
 
       - name: wmass combine fit
         run: >- 
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh narf/scripts/fitting/combinetf2.py 
+          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh combinetf2/scripts/fit.py 
           $WREMNANTS_OUTDIR/WMass_eta_pt_charge_unfolding/WMass.hdf5 -o $WREMNANTS_OUTDIR/WMass_eta_pt_charge_unfolding/fitresults.hdf5 
           --binByBinStat --doImpacts
 
@@ -261,7 +261,7 @@ jobs:
 
       - name: wmass combine unfolded xsec
         run: >- 
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh narf/scripts/fitting/combinetf2.py 
+          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh combinetf2/scripts/fit.py 
           $WREMNANTS_OUTDIR/WMass_qGen_ptGen_absEtaGen_unfolding/WMass.hdf5 -o $WREMNANTS_OUTDIR/WMass_qGen_ptGen_absEtaGen_unfolding/fitresults.hdf5
           --externalPostfit $WREMNANTS_OUTDIR/WMass_eta_pt_charge_unfolding/fitresults.hdf5
           --saveHists --computeHistErrors --computeHistCov --computeHistImpacts --noChi2 --project ch0 ptGen --project ch0 absEtaGen 
@@ -303,7 +303,7 @@ jobs:
 
       - name: wmass combine fit 
         run: >- 
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh narf/scripts/fitting/combinetf2.py 
+          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh combinetf2/scripts/fit.py 
           $WREMNANTS_OUTDIR/WMass_qGen_ptGen_absEtaGen_theoryfit/WMass.hdf5 -o $WREMNANTS_OUTDIR/WMass_qGen_ptGen_absEtaGen_theoryfit/fitresults.hdf5
           --doImpacts --globalImpacts --saveHists --computeHistErrors --chisqFit --externalCovariance -t 0
 
@@ -396,7 +396,7 @@ jobs:
 
       - name: wlike combine unfolding fit 
         run: >-
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh narf/scripts/fitting/combinetf2.py 
+          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh combinetf2/scripts/fit.py 
           $WREMNANTS_OUTDIR/ZMassWLike_eta_pt_charge_unfolding/ZMassWLike.hdf5 -o $WREMNANTS_OUTDIR/ZMassWLike_eta_pt_charge_unfolding/fitresults.hdf5
           --binByBinStat --doImpacts
 
@@ -409,7 +409,7 @@ jobs:
 
       - name: wlike combine unfolded xsec
         run: >- 
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh narf/scripts/fitting/combinetf2.py 
+          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh combinetf2/scripts/fit.py 
           $WREMNANTS_OUTDIR/ZMassWLike_ptGen_absEtaGen_qGen_unfolding/ZMassWLike.hdf5 -o $WREMNANTS_OUTDIR/ZMassWLike_ptGen_absEtaGen_qGen_unfolding/fitresults.hdf5
           --externalPostfit $WREMNANTS_OUTDIR/ZMassWLike_eta_pt_charge_unfolding/fitresults.hdf5
           --saveHists --computeHistErrors --computeHistCov --computeHistImpacts --noChi2 --project ch0 ptGen --project ch0 absEtaGen
@@ -454,7 +454,7 @@ jobs:
 
       - name: wlike combine fit 
         run: >- 
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh narf/scripts/fitting/combinetf2.py 
+          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh combinetf2/scripts/fit.py 
           $WREMNANTS_OUTDIR/ZMassWLike_qGen_ptGen_absEtaGen_theoryfit/ZMassWLike.hdf5 -o $WREMNANTS_OUTDIR/ZMassWLike_qGen_ptGen_absEtaGen_theoryfit/fitresults.hdf5
           --doImpacts --globalImpacts --saveHists --computeHistErrors --chisqFit --externalCovariance -t 0
 
@@ -551,7 +551,7 @@ jobs:
 
       - name: dilepton combine ptll unfolding fit
         run: >- 
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh narf/scripts/fitting/combinetf2.py 
+          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh combinetf2/scripts/fit.py 
           $WREMNANTS_OUTDIR/ZMassDilepton_ptll_yll_unfolding/ZMassDilepton.hdf5 -o $WREMNANTS_OUTDIR/ZMassDilepton_ptll_yll_unfolding/fitresults.hdf5
           --binByBinStat --doImpacts --globalImpacts --saveHists --computeHistErrors
 
@@ -563,7 +563,7 @@ jobs:
 
       - name: dilepton combine ptll unfolded xsec
         run: >- 
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh narf/scripts/fitting/combinetf2.py 
+          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh combinetf2/scripts/fit.py 
           $WREMNANTS_OUTDIR/ZMassDilepton_ptVGen_absYVGen_unfolding/ZMassDilepton.hdf5 -o $WREMNANTS_OUTDIR/ZMassDilepton_ptVGen_absYVGen_unfolding/fitresults.hdf5
           --externalPostfit $WREMNANTS_OUTDIR/ZMassDilepton_ptll_yll_unfolding/fitresults.hdf5
           --saveHists --computeHistErrors --computeHistCov --computeHistImpacts --noChi2 --project ch0 ptVGen --project ch0 absYVGen
