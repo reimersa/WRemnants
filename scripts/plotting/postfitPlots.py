@@ -774,14 +774,6 @@ def make_plots(
         l if p not in args.suppressProcsLabel else None for l, p in zip(labels, procs)
     ]
 
-    if args.unfoldedXsec:
-        # convert number in cross section in pb
-        hist_data = hh.scaleHist(hist_data, 1.0 / (lumi * 1000))
-        hist_inclusive = hh.scaleHist(hist_inclusive, 1.0 / (lumi * 1000))
-        hist_stack = [hh.scaleHist(h, 1.0 / (lumi * 1000)) for h in hist_stack]
-        if hist_data_stat is not None:
-            hist_data_stat = hh.scaleHist(hist_data_stat, 1.0 / (lumi * 1000))
-
     if hist_var is not None:
         hists_down = [
             hist_var[{"downUpVar": 0, "vars": n}].project(*[a.name for a in axes])
@@ -791,11 +783,20 @@ def make_plots(
             hist_var[{"downUpVar": 1, "vars": n}].project(*[a.name for a in axes])
             for n in varNames
         ]
-        hists_up = [hh.scaleHist(h, 1.0 / (lumi * 1000)) for h in hists_up]
-        hists_down = [hh.scaleHist(h, 1.0 / (lumi * 1000)) for h in hists_down]
     else:
         hists_down = None
         hists_up = None
+
+    if args.unfoldedXsec:
+        # convert number in cross section in pb
+        hist_data = hh.scaleHist(hist_data, 1.0 / (lumi * 1000))
+        hist_inclusive = hh.scaleHist(hist_inclusive, 1.0 / (lumi * 1000))
+        hist_stack = [hh.scaleHist(h, 1.0 / (lumi * 1000)) for h in hist_stack]
+        if hist_data_stat is not None:
+            hist_data_stat = hh.scaleHist(hist_data_stat, 1.0 / (lumi * 1000))
+        if hist_var is not None:
+            hists_up = [hh.scaleHist(h, 1.0 / (lumi * 1000)) for h in hists_up]
+            hists_down = [hh.scaleHist(h, 1.0 / (lumi * 1000)) for h in hists_down]
 
     # make plots in slices (e.g. for charge plus an minus separately)
     selection_axes = [a for a in axes if a.name in args.selectionAxes]

@@ -92,18 +92,16 @@ def divideHists(
         h1 = broadcastSystHist(h1, h2, flow, by_ax_name)
         h2 = broadcastSystHist(h2, h1, flow, by_ax_name)
 
-    if rel_unc:
-        storage = h1.storage_type()
+    h1vals, h2vals, h1vars, h2vars = valsAndVariances(h1, h2, flow=flow)
+
+    if rel_unc and h1vars is not None:
+        storage = hist.storage.Weight()
+    elif h1vars is None or h2vars is None:
+        storage = hist.storage.Double()
     else:
-        storage = (
-            h1.storage_type()
-            if h1.storage_type == h2.storage_type
-            else hist.storage.Double()
-        )
+        storage = hist.storage.Weight()
 
     outh = hist.Hist(*h1.axes, storage=storage) if createNew else h1
-
-    h1vals, h2vals, h1vars, h2vars = valsAndVariances(h1, h2, flow=flow)
 
     # Careful not to overwrite the values of h1
     out = (
@@ -131,12 +129,13 @@ def divideHists(
         )
 
     if outh.storage_type == hist.storage.Weight:
-        relvars = relVariances(h1vals, h2vals, h1vars, h2vars, cutoff=cutoff)
+        rel1 = relVariance(h1vals, h1vars, cutoff=cutoff)
         val2 = np.multiply(val, val)
         if rel_unc:
-            var = np.multiply(val2, relvars[0], out=val2)
+            var = np.multiply(val2, rel1, out=val2)
         else:
-            relsum = np.add(*relvars)
+            rel2 = relVariance(h2vals, h2vars, cutoff=cutoff)
+            relsum = np.add(rel1, rel2)
             var = np.multiply(relsum, val2, out=val2)
 
         outh.view(flow=flow)[...] = np.stack((val, var), axis=-1)

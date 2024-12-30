@@ -768,7 +768,7 @@ def producePlots(
             impact_title = "Impact on mass diff. (MeV)"
     elif poi and poi.startswith("width"):
         impact_title = "Impact on width (MeV)"
-    elif poi in ["pdfAlphaS_noi"]:
+    elif poi in ["pdfAlphaS"]:
         scale = 1.5
         impact_title = "Impact on <i>α</i><sub>S</sub> in 10<sup>-3</sup>"
     else:
@@ -932,10 +932,11 @@ def producePlots(
             # in case multiple extensions are given including html, don't do the skimming on html but all other formats
             if "html" in extensions and len(extensions) > 1:
                 fig = plotImpacts(df, legend_pos="right", **kwargs)
-                outfile_html = outfile.replace(outfile.split(".")[-1], "html")
+                outfile_html = ".".join([*outfile.split(".")[:-1], "html"])
                 writeOutput(fig, outfile_html, [".html"], postfix=postfix)
                 extensions = [e for e in extensions if e != "html"]
-                outfile = outfile.replace(outfile.split(".")[-1], extensions[0])
+                outfile = ".".join([*outfile.split(".")[:-1], extensions[0]])
+
             df = df[-args.num :]
 
         # utility output to prepare hepdata

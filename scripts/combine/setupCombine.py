@@ -1166,7 +1166,7 @@ def setup(
     )
     cardTool.addProcessGroup(
         "MCnoQCD",
-        lambda x: x not in ["QCD", "Data"],
+        lambda x: x not in ["QCD", "Data", "Fake"],
     )
     # FIXME/FOLLOWUP: the following groups may actually not exclude the OOA when it is not defined as an independent process with specific name
     cardTool.addProcessGroup(
