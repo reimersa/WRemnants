@@ -10,7 +10,7 @@ logger = logging.child_logger(__name__)
 
 
 def add_mass_diff_variations(
-    cardTool,
+    datagroups,
     mass_diff_var,
     name,
     processes,
@@ -20,9 +20,9 @@ def add_mass_diff_variations(
     passSystToFakes=True,
 ):
     mass_diff_args = dict(
-        name=name,
+        histname=name,
+        name=f"massDiff{suffix}{label}",
         processes=processes,
-        rename=f"massDiff{suffix}{label}",
         group=f"massDiff{label}",
         systNameReplace=[("Shift", f"Diff{suffix}")],
         skipEntries=syst_tools.massWeightNames(proc=label, exclude=50),
@@ -35,31 +35,31 @@ def add_mass_diff_variations(
     # mass difference by swapping the +50MeV with the -50MeV variations for half of the bins
     args = ["massShift", f"massShift{label}50MeVUp", f"massShift{label}50MeVDown"]
     if mass_diff_var == "charge":
-        cardTool.addSystematic(
+        datagroups.addSystematic(
             **mass_diff_args,
             # # on gen level based on the sample, only possible for mW
             # preOpMap={m.name: (lambda h, swap=swap_bins: swap(h, "massShift", f"massShift{label}50MeVUp", f"massShift{label}50MeVDown"))
-            #     for p in processes for g in cardTool.procGroups[p] for m in cardTool.datagroups.groups[g].members if "minus" in m.name},
+            #     for p in processes for g in datagroups.procGroups[p] for m in datagroups.groups[g].members if "minus" in m.name},
             # on reco level based on reco charge
             preOp=lambda h: hh.swap_histogram_bins(h, *args, "charge", 0),
         )
 
     elif mass_diff_var == "cosThetaStarll":
-        cardTool.addSystematic(
+        datagroups.addSystematic(
             **mass_diff_args,
             preOp=lambda h: hh.swap_histogram_bins(
                 h, *args, "cosThetaStarll", hist.tag.Slicer()[0 : complex(0, 0) :]
             ),
         )
     elif mass_diff_var == "eta-sign":
-        cardTool.addSystematic(
+        datagroups.addSystematic(
             **mass_diff_args,
             preOp=lambda h: hh.swap_histogram_bins(
                 h, *args, "eta", hist.tag.Slicer()[0 : complex(0, 0) :]
             ),
         )
     elif mass_diff_var == "eta-range":
-        cardTool.addSystematic(
+        datagroups.addSystematic(
             **mass_diff_args,
             preOp=lambda h: hh.swap_histogram_bins(
                 h, *args, "eta", hist.tag.Slicer()[complex(0, -0.9) : complex(0, 0.9) :]
@@ -67,9 +67,9 @@ def add_mass_diff_variations(
         )
     elif mass_diff_var.startswith("etaRegion"):
         # 3 bins, use 3 unconstrained parameters: mass; mass0 - mass2; mass0 + mass2 - mass1
-        mass_diff_args["rename"] = f"massDiff1{suffix}{label}"
+        mass_diff_args["name"] = f"massDiff1{suffix}{label}"
         mass_diff_args["systNameReplace"] = [("Shift", f"Diff1{suffix}")]
-        cardTool.addSystematic(
+        datagroups.addSystematic(
             **mass_diff_args,
             preOp=lambda h: hh.swap_histogram_bins(
                 hh.swap_histogram_bins(h, *args, mass_diff_var, 2),  # invert for mass2
@@ -79,9 +79,9 @@ def add_mass_diff_variations(
                 axis1_replace=f"massShift{label}0MeV",
             ),  # set mass1 to nominal
         )
-        mass_diff_args["rename"] = f"massDiff2{suffix}{label}"
+        mass_diff_args["name"] = f"massDiff2{suffix}{label}"
         mass_diff_args["systNameReplace"] = [("Shift", f"Diff2{suffix}")]
-        cardTool.addSystematic(
+        datagroups.addSystematic(
             **mass_diff_args,
             preOp=lambda h: hh.swap_histogram_bins(h, *args, mass_diff_var, 1),
         )
@@ -105,8 +105,11 @@ def add_recoil_uncertainty(
             "recoil_stat",
             processes=samples,
             mirror=True,
-            group="recoil" if group_compact else "recoil_stat",
-            splitGroup={"experiment": f".*", "expNoCalib": ".*"},
+            groups=[
+                "recoil" if group_compact else "recoil_stat",
+                "experiment",
+                "expNoCalib",
+            ],
             systAxes=["recoil_unc"],
             passToFakes=passSystToFakes,
         )
@@ -117,8 +120,11 @@ def add_recoil_uncertainty(
             "recoil_syst",
             processes=samples,
             mirror=True,
-            group="recoil" if group_compact else "recoil_syst",
-            splitGroup={"experiment": f".*", "expNoCalib": ".*"},
+            groups=[
+                "recoil" if group_compact else "recoil_syst",
+                "experiment",
+                "expNoCalib",
+            ],
             systAxes=["recoil_unc"],
             passToFakes=passSystToFakes,
         )
@@ -127,15 +133,18 @@ def add_recoil_uncertainty(
             "recoil_stat",
             processes=samples,
             mirror=True,
-            group="recoil" if group_compact else "recoil_stat",
-            splitGroup={"experiment": f".*", "expNoCalib": ".*"},
+            groups=[
+                "recoil" if group_compact else "recoil_stat",
+                "experiment",
+                "expNoCalib",
+            ],
             systAxes=["recoil_unc"],
             passToFakes=passSystToFakes,
         )
 
 
 def add_explicit_BinByBinStat(
-    cardTool, recovar, samples="signal_samples", wmass=False, source=None, label="Z"
+    datagroups, recovar, samples="signal_samples", wmass=False, source=None, label="Z"
 ):
     """
     add explicit bin by bin stat uncertainties
@@ -143,19 +152,18 @@ def add_explicit_BinByBinStat(
     source (tuple of str): take variations from histogram with name given by f"{source[0]}_{source[1]}" (E.g. used to correlate between masked channels).
         If None, use variations from nominal histogram
     """
-    datagroups = cardTool.datagroups
 
     recovar_syst = [f"_{n}" for n in recovar]
     info = dict(
-        baseName="binByBinStat_" + "_".join(cardTool.procGroups[samples]) + "_",
-        rename=f"binByBinStat{label}",
+        baseName="binByBinStat_" + "_".join(datagroups.procGroups[samples]) + "_",
+        name=f"binByBinStat{label}",
         group=f"binByBinStat{label}",
         passToFakes=False,
         processes=[samples],
         mirror=True,
         labelsByAxis=[f"_{p}" if p != recovar[0] else p for p in recovar],
     )
-    cardTool.setProcsNoStatUnc(cardTool.procGroups[samples])
+    datagroups.setProcsNoStatUnc(datagroups.procGroups[samples])
     if source is not None:
         # signal region selection
         if wmass:
@@ -168,7 +176,7 @@ def add_explicit_BinByBinStat(
         integration_var = {
             a: hist.sum for a in datagroups.gen_axes_names
         }  # integrate out gen axes for bin by bin uncertainties
-        cardTool.addSystematic(
+        datagroups.addSystematic(
             **info,
             nominalName=source[0],
             name=source[1],
@@ -196,9 +204,8 @@ def add_explicit_BinByBinStat(
     else:
         # if args.fitresult: # FIXME
         #     info["group"] = "binByBinStat"
-        cardTool.addSystematic(
+        datagroups.addSystematic(
             **info,
-            name=cardTool.nominalName,
             systAxes=recovar_syst,
             action=lambda h: hh.addHists(
                 h.project(*recovar),
@@ -219,12 +226,6 @@ def add_electroweak_uncertainty(
     passSystToFakes=True,
     wlike=False,
 ):
-    info = dict(
-        systAxes=["systIdx"],
-        mirror=True,
-        splitGroup={"theory_ew": f".*", "theory": f".*"},
-        passToFakes=passSystToFakes,
-    )
     # different uncertainty for W and Z samples
     all_samples = card_tool.procGroups[samples]
     z_samples = [p for p in all_samples if p[0] == "Z"]
@@ -241,8 +242,7 @@ def add_electroweak_uncertainty(
                     labelsByAxis=[f"renesanceEWCorr"],
                     scale=1.0,
                     systAxes=["var"],
-                    group="theory_ew_virtW_corr",
-                    splitGroup={"theory_ew": f".*", "theory": f".*"},
+                    groups=[f"theory_ew_virtW_corr", "theory_ew", "theory"],
                     passToFakes=passSystToFakes,
                     mirror=True,
                 )
@@ -256,10 +256,9 @@ def add_electroweak_uncertainty(
                     scale=1.0,
                     systAxes=["weak"],
                     mirror=True,
-                    group="theory_ew_virtZ_scheme",
-                    splitGroup={"theory_ew": f".*", "theory": f".*"},
+                    groups=[f"theory_ew_virtZ_scheme", "theory_ew", "theory"],
                     passToFakes=passSystToFakes,
-                    rename="ewScheme",
+                    name="ewScheme",
                 )
                 card_tool.addSystematic(
                     f"{ewUnc}Corr",
@@ -269,10 +268,9 @@ def add_electroweak_uncertainty(
                     scale=1.0,
                     systAxes=["weak"],
                     mirror=True,
-                    group="theory_ew_virtZ_corr",
-                    splitGroup={"theory_ew": f".*", "theory": f".*"},
+                    groups=[f"theory_ew_virtZ_corr", "theory_ew", "theory"],
                     passToFakes=passSystToFakes,
-                    rename="ew",
+                    name="ew",
                 )
         else:
             if "FSR" in ewUnc:
@@ -309,17 +307,19 @@ def add_electroweak_uncertainty(
 
             card_tool.addSystematic(
                 f"{ewUnc}Corr",
-                **info,
+                systAxes=["systIdx"],
+                mirror=True,
+                passToFakes=passSystToFakes,
                 processes=samples,
                 labelsByAxis=[f"{ewUnc}Corr"],
                 scale=scale,
                 preOp=preOp,
-                group=f"theory_ew_{ewUnc}",
+                groups=[f"theory_ew_{ewUnc}", "theory_ew", "theory"],
             )
 
 
 def add_noi_unfolding_variations(
-    cardTool,
+    datagroups,
     label,
     passSystToFakes,
     xnorm,
@@ -331,10 +331,10 @@ def add_noi_unfolding_variations(
 ):
     poi_axes_syst = [f"_{n}" for n in poi_axes] if xnorm else poi_axes[:]
     noi_args = dict(
+        histname=f"xnorm" if xnorm else f"yieldsUnfolding",
+        name="yieldsUnfolding",
         group=f"normXsec{label}",
         passToFakes=passSystToFakes,
-        name=f"xnorm" if xnorm else f"yieldsUnfolding",
-        rename="yieldsUnfolding",
         systAxes=poi_axes_syst,
         processes=["signal_samples"],
         noConstraint=True,
@@ -356,8 +356,8 @@ def add_noi_unfolding_variations(
     def get_scalemap(axes, scale=None, select={}):
         # make sure each gen bin variation has a similar effect in the reco space so that
         #  we have similar sensitivity to all parameters within the given up/down variations
-        signal_samples = cardTool.procGroups["signal_samples"]
-        hScale = cardTool.getHistsForProcAndSyst(
+        signal_samples = datagroups.procGroups["signal_samples"]
+        hScale = datagroups.getHistsForProcAndSyst(
             signal_samples[0], "yieldsUnfolding", nominal_name="nominal"
         )
         hScale = hScale[{"acceptance": True, **select}]
@@ -381,7 +381,7 @@ def add_noi_unfolding_variations(
 
         scalemap = get_scalemap(poi_axes, scale_norm)
 
-        cardTool.addSystematic(
+        datagroups.addSystematic(
             **noi_args,
             baseName=f"{label}_",
             action=make_poi_xnorm_variations,
@@ -416,8 +416,8 @@ def add_noi_unfolding_variations(
                 scalemap = get_scalemap(
                     poi_axes, scale_norm, select={"charge": sign_idx}
                 )
-                noi_args["rename"] = f"noiW{sign}"
-                cardTool.addSystematic(
+                noi_args["name"] = f"noiW{sign}"
+                datagroups.addSystematic(
                     **noi_args,
                     baseName=f"W_qGen{sign_idx}_",
                     systAxesFlow=[n for n in poi_axes if n in poi_axes_flow],
@@ -437,21 +437,21 @@ def add_noi_unfolding_variations(
                                 ]
                             )
                         )
-                        for g in cardTool.procGroups["signal_samples"]
-                        for m in cardTool.datagroups.groups[g].members
+                        for g in datagroups.procGroups["signal_samples"]
+                        for m in datagroups.groups[g].members
                     },
                     preOpArgs=dict(poi_axes=poi_axes, scale=scalemap),
                 )
         else:
             scalemap = get_scalemap(poi_axes, scale_norm)
-            cardTool.addSystematic(
+            datagroups.addSystematic(
                 **noi_args,
                 baseName=f"{label}_",
                 systAxesFlow=[n for n in poi_axes if n in poi_axes_flow],
                 preOpMap={
                     m.name: make_poi_variations
-                    for g in cardTool.procGroups["signal_samples"]
-                    for m in cardTool.datagroups.groups[g].members
+                    for g in datagroups.procGroups["signal_samples"]
+                    for m in datagroups.groups[g].members
                 },
                 preOpArgs=dict(poi_axes=poi_axes, scale=scalemap),
             )

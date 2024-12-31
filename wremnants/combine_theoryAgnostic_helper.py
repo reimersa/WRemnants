@@ -9,13 +9,13 @@ logger = logging.child_logger(__name__)
 
 
 class TheoryAgnosticHelper(object):
-    def __init__(self, card_tool, externalArgs=None):
-        self.card_tool = card_tool
+    def __init__(self, datagroups, externalArgs=None):
+        self.datagroups = datagroups
         toCheck = ["signal_samples", "signal_samples_noOutAcc"]
         for group in toCheck:
-            if group not in self.card_tool.procGroups:
+            if group not in self.procGroups:
                 raise ValueError(
-                    f"Must define '{group}' procGroup in CardTool for theory agnostic fit"
+                    f"Must define '{group}' procGroup in datagroups for theory agnostic fit"
                 )
         self.args = externalArgs
         self.label = "Label"
@@ -40,7 +40,7 @@ class TheoryAgnosticHelper(object):
         groupName = f"polVar{self.label}"
         for genVcharge in ["minus", "plus"]:
             for coeffKey in coeffs:
-                self.card_tool.addSystematic(
+                self.datagroups.addSystematic(
                     f"theoryAgnosticWithPol_{coeffKey}_{genVcharge}",
                     group=groupName,
                     mirror=False,
@@ -67,7 +67,7 @@ class TheoryAgnosticHelper(object):
         signalGroupName = "muRmuFPolVarW" if self.label == "W" else "muRmuFPolVarZ"
         nonSignalGroupName = "muRmuFPolVarZ" if self.label == "W" else "muRmuFPolVarW"
         for coeffKey in coeffs:
-            self.card_tool.addSystematic(
+            self.datagroups.addSystematic(
                 f"{signalGroupName}_{coeffKey}",
                 group=signalGroupName,
                 mirror=False,
@@ -87,7 +87,7 @@ class TheoryAgnosticHelper(object):
             )
 
         for coeffKey in coeffs:
-            self.card_tool.addSystematic(
+            self.datagroups.addSystematic(
                 f"{nonSignalGroupName}_{coeffKey}",
                 group=nonSignalGroupName,
                 mirror=False,
@@ -148,10 +148,10 @@ class TheoryAgnosticHelper(object):
 
         result = {}
 
-        for g in self.card_tool.procGroups["signal_samples"]:
+        for g in self.datagroups.procGroups["signal_samples"]:
             if sign != "":
                 if sign is not None:
-                    for m in self.card_tool.datagroups.groups[g].members:
+                    for m in self.datagroups.groups[g].members:
                         if sign in m.name:
                             scale_hist = scale_hists[m.name]
                             result[m.name] = (
@@ -203,9 +203,9 @@ class TheoryAgnosticHelper(object):
         else:
             sign_list = ["plus", "minus"]
         for sign in sign_list:
-            self.card_tool.addSystematic(
+            self.datagroups.addSystematic(
                 "yieldsTheoryAgnostic",
-                rename=f"{nuisanceBaseName}{sign}",
+                name=f"{nuisanceBaseName}{sign}",
                 **common_noi_args,
                 mirror=True,
                 symmetrize=None,
@@ -236,9 +236,9 @@ class TheoryAgnosticHelper(object):
                 ),
             ),
             if sign == "":  # only for Z
-                self.card_tool.addSystematic(
+                self.datagroups.addSystematic(
                     "yieldsTheoryAgnostic",
-                    rename=f"{nuisanceBaseName}{sign}CorrAll",
+                    name=f"{nuisanceBaseName}{sign}CorrAll",
                     **common_noi_args,
                     mirror=True,
                     symmetrize=None,
@@ -268,9 +268,9 @@ class TheoryAgnosticHelper(object):
                 ),
 
         if not sign_list == [""]:
-            self.card_tool.addSystematic(
+            self.datagroups.addSystematic(
                 "yieldsTheoryAgnostic",
-                rename=f"{nuisanceBaseName}CorrAllQ",
+                name=f"{nuisanceBaseName}CorrAllQ",
                 **common_noi_args,
                 mirror=True,
                 symmetrize=None,

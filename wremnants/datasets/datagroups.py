@@ -63,6 +63,7 @@ class Datagroups(object):
             self.flavor = None
 
         self.groups = {}
+        self.procGroups = {}  # groups of groups for convenent definition of systematics
         self.nominalName = "nominal"
         self.rebinOp = None
         self.rebinBeforeSelection = False
@@ -71,6 +72,7 @@ class Datagroups(object):
         self.fakeName = "Fake" + (f"_{self.flavor}" if self.flavor is not None else "")
         self.dataName = "Data"
         self.gen_axes = {}
+        self.fit_axes = []
         self.fakerate_axes = ["pt", "eta", "charge"]
 
         self.setGenAxes()
@@ -100,6 +102,16 @@ class Datagroups(object):
             logger.warning(
                 f"No data process was selected, normalizing MC to {self.lumi }/fb"
             )
+        self.lumiScale = 1
+        self.lumiScaleVarianceLinearly = []
+
+        self.channel = "ch0"
+        self.binByBinStatScale = 1.0
+        self.excludeSyst = None
+        self.keepSyst = None
+        self.customSystMapping = {}
+
+        self.writer = None
 
     def get_members_from_results(self, startswith=[], not_startswith=[], is_data=False):
         dsets = {
@@ -390,6 +402,19 @@ class Datagroups(object):
             "Currently can't access meta data as dict for ROOT file"
         )
 
+    def args_from_metadata(self, arg):
+        meta_data = self.getMetaInfo()
+        if "args" not in meta_data.keys():
+            raise IOError(
+                f"The argument {arg} was not found in the metadata, maybe you run on an obsolete file."
+            )
+        elif arg not in meta_data["args"].keys():
+            raise IOError(
+                f"Did not find the argument {arg} in the meta_data dict. Maybe it is an outdated option"
+            )
+
+        return meta_data["args"][arg]
+
     def getScriptCommand(self):
         if self.rtfile:
             return self.rtfile.Get("meta_info/command").GetTitle()
@@ -422,8 +447,6 @@ class Datagroups(object):
         forceNonzero=False,
         preOpMap=None,
         preOpArgs={},
-        scaleToNewLumi=1,
-        lumiScaleVarianceLinearly=[],
         excludeProcs=None,
         forceToNominal=[],
         sumFakesPartial=True,
@@ -554,18 +577,24 @@ class Datagroups(object):
                     scale *= group.scale(member)
 
                 # When scaling yields by a luminosity factor, select whether to scale the variance linearly (e.g. for extrapolation studies) or quadratically (default).
-                if not np.isclose(scaleToNewLumi, 1, rtol=0, atol=1e-6) and (
-                    (procName == self.dataName and "data" in lumiScaleVarianceLinearly)
-                    or (procName != self.dataName and "mc" in lumiScaleVarianceLinearly)
+                if not np.isclose(self.lumiScale, 1, rtol=0, atol=1e-6) and (
+                    (
+                        procName == self.dataName
+                        and "data" in self.lumiScaleVarianceLinearly
+                    )
+                    or (
+                        procName != self.dataName
+                        and "mc" in self.lumiScaleVarianceLinearly
+                    )
                 ):
                     logger.warning(
-                        f"Scale {procName} hist by {scaleToNewLumi} as a multiplicative luminosity factor, with variance scaled linearly"
+                        f"Scale {procName} hist by {self.lumiScale} as a multiplicative luminosity factor, with variance scaled linearly"
                     )
                     h = hh.scaleHist(
-                        h, scaleToNewLumi, createNew=False, scaleVarianceLinearly=True
+                        h, self.lumiScale, createNew=False, scaleVarianceLinearly=True
                     )
                 else:
-                    scale *= scaleToNewLumi
+                    scale *= self.lumiScale
 
                 if not np.isclose(scale, 1, rtol=0, atol=1e-10):
                     logger.debug(f"Scale hist with {scale}")
@@ -1032,10 +1061,522 @@ class Datagroups(object):
 
         return h
 
+    def addProcessGroup(self, name, procFilter):
+        self.procGroups[name] = self.filteredProcesses(procFilter)
+        if not self.procGroups[name]:
+            logger.warning(
+                f"Did not match any processes to filter for group {name}! Valid procs are {self.groups.keys()}"
+            )
+
+    def expandProcesses(self, processes):
+        if type(processes) == str:
+            processes = [processes]
+
+        return [x for y in processes for x in self.expandProcess(y)]
+
+    def expandProcess(self, process):
+        return self.procGroups.get(process, [process])
+
+    def getProcGroupNames(self, grouped_procs):
+        expanded_procs = []
+        for group in grouped_procs:
+            procs = self.expandProcess(group)
+            for ungrouped in procs:
+                expanded_procs.extend(self.getProcNames([ungrouped]))
+
+        return expanded_procs
+
+    def isData(self, procName, onlyData=False):
+        if onlyData:
+            return all([x.is_data for x in self.groups[procName].members])
+        else:
+            return any([x.is_data for x in self.groups[procName].members])
+
+    def isMC(self, procName):
+        return not self.isData(procName)
+
+    def getProcesses(self):
+        return list(self.groups.keys())
+
+    def filteredProcesses(self, filterExpr):
+        return list(filter(filterExpr, self.groups.keys()))
+
+    def allMCProcesses(self):
+        return self.filteredProcesses(lambda x: self.isMC(x))
+
+    def predictedProcesses(self):
+        return self.filteredProcesses(lambda x: x != self.dataName)
+
     def histName(self, baseName, procName="", syst=""):
         return Datagroups.histName(
             baseName, procName, syst, nominalName=self.nominalName
         )
+
+    ## Functions to customize systs to be added in card, mainly for tests
+    def setCustomSystForCard(self, exclude=None, keep=None):
+        for regex, name in zip((keep, exclude), ("keepSyst", "excludeSyst")):
+            if regex in self.customSystMapping:
+                regex = self.customSystMapping[regex]
+            if regex:
+                setattr(self, name, re.compile(regex))
+
+    def setCustomSystGroupMapping(self, mapping):
+        self.customSystMapping = mapping
+
+    def isExcludedNuisance(self, name):
+        # note, re.match search for a match from the beginning, so if x="test" x.match("mytestPDF1") will NOT match
+        # might use re.search instead to be able to match from anywhere inside the name
+        if self.excludeSyst != None and self.excludeSyst.match(name):
+            if self.keepSyst != None and self.keepSyst.match(name):
+                return False
+            else:
+                logger.info(f"   Excluding nuisance: {name}")
+                return True
+        else:
+            return False
+
+    # Read a specific hist, useful if you need to check info about the file
+    def getHistsForProcAndSyst(self, proc, syst, nominal_name=None):
+        if nominal_name is None:
+            nominal_name = self.nominalName
+        self.loadHistsForDatagroups(
+            baseName=nominal_name,
+            syst=syst,
+            label="syst",
+            procsToRead=[proc],
+        )
+        return self.groups[proc].hists["syst"]
+
+    def addNominalHistograms(
+        self, forceNonzero=False, real_data=False, bin_by_bin_stat_scale=1.0
+    ):
+        if self.writer is None:
+            raise RuntimeError("Writer must be defined to add nominal histograms")
+
+        self.loadHistsForDatagroups(
+            baseName=self.nominalName,
+            syst=self.nominalName,
+            procsToRead=self.groups.keys(),
+            label=self.nominalName,
+            forceNonzero=forceNonzero,
+            sumFakesPartial=True,
+        )
+
+        for proc in self.predictedProcesses():
+            logger.debug(f"Now  in channel {self.channel} at process {proc}")
+
+            # nominal histograms of prediction
+            norm_proc_hist = self.groups[proc].hists[self.nominalName]
+            if bin_by_bin_stat_scale != 1:
+                norm_proc_hist.variances()[...] = (
+                    norm_proc_hist.variances() * bin_by_bin_stat_scale**2
+                )
+
+            self.writer.add_process(
+                norm_proc_hist,
+                proc,
+                self.channel,
+                signal=proc in self.unconstrainedProcesses,
+            )
+
+        if real_data:
+            data_obs_hist = self.groups[self.dataName].hists[self.nominalName]
+        else:
+            data_obs_hist = hh.sumHists(
+                [
+                    self.groups[proc].hists[self.nominalName]
+                    for proc in self.predictedProcesses()
+                ]
+            )
+
+        self.writer.add_data(data_obs_hist, self.channel)
+
+    def addSystematic(
+        self,
+        histname=None,
+        name=None,
+        processes=None,
+        noi=False,
+        noConstraint=False,
+        mirror=False,
+        symmetrize="average",
+        preOp=None,
+        preOpMap=None,
+        preOpArgs={},
+        passToFakes=False,
+        forceNonzero=False,
+        applySelection=True,
+        scale=1,
+        group=None,
+        groups=[],
+        splitGroup=None,
+        action=None,
+        actionArgs={},
+        actionRequiresNomi=False,
+        **kwargs,
+    ):
+        """
+        'preOp': Operation that is applied on each member before members are summed up to groups and before the selection is performed
+        'action': Operation that is applied after everything else
+        """
+
+        if group is not None:
+            groups = [*groups, group]
+        if splitGroup is not None:
+            # precompile splitGroup expressions for better performance
+            splitGroup = {g: re.compile(v) for g, v in splitGroup.items()}
+
+        if preOp and preOpMap:
+            raise ValueError("Only one of preOp and preOpMap args are allowed")
+        if histname is None:
+            histname = self.nominalName
+        if name is None:
+            if histname == self.nominalName:
+                raise RuntimeError(
+                    "The systematic is based on the nominal histogram, a name must be specified."
+                )
+            else:
+                name = histname
+
+        logger.info(f"Now in channel {self.channel} at shape systematic group {name}")
+
+        if self.isExcludedNuisance(name):
+            return
+
+        if isinstance(processes, str):
+            processes = [processes]
+        # Need to make an explicit copy of the array before appending
+        procs_to_add = [
+            x for x in (self.allMCProcesses() if processes is None else processes)
+        ]
+        procs_to_add = self.expandProcesses(procs_to_add)
+
+        if preOp:
+            preOpMap = {
+                n: preOp
+                for n in set(
+                    [m.name for g in procs_to_add for m in self.groups[g].members]
+                )
+            }
+
+        if passToFakes and self.fakeName not in procs_to_add:
+            procs_to_add.append(self.fakeName)
+
+        # protection when the input list is empty because of filters but the systematic is built reading the nominal
+        # since the nominal reads all filtered processes regardless whether a systematic is passed to them or not
+        # this can happen when creating new systs by scaling of the nominal histogram
+        if not len(procs_to_add):
+            return
+
+        # Needed to avoid always reading the variation for the fakes, even for procs not specified
+        forceToNominal = [
+            x
+            for x in self.getProcNames()
+            if x
+            not in self.getProcNames(
+                [
+                    p
+                    for g in procs_to_add
+                    for p in self.expandProcesses(g)
+                    if p != self.fakeName
+                ]
+            )
+        ]
+        self.loadHistsForDatagroups(
+            self.nominalName,
+            histname,
+            label="syst",
+            procsToRead=procs_to_add,
+            forceNonzero=forceNonzero and name != "qcdScaleByHelicity",
+            preOpMap=preOpMap,
+            preOpArgs=preOpArgs,
+            applySelection=applySelection,
+            forceToNominal=forceToNominal,
+            sumFakesPartial=True,
+        )
+
+        for proc in procs_to_add:
+            logger.debug(f"Now at proc {proc}!")
+
+            hvar = self.groups[proc].hists["syst"]
+
+            if action is not None:
+                if actionRequiresNomi:
+                    hnom = self.groups[proc].hists[self.nominalName]
+                    hvar = action(hvar, hnom, **actionArgs)
+                else:
+                    hvar = action(hvar, **actionArgs)
+
+            var_map = self.systHists(name, hvar, **kwargs)
+
+            for var_name, hists in var_map.items():
+                matched_groups = groups[:]
+                if splitGroup is not None:
+                    matched_groups.extend(
+                        [
+                            grp
+                            for grp, matchre in splitGroup.items()
+                            if matchre.match(var_name)
+                        ]
+                    )
+
+                self.writer.add_systematic(
+                    hists,
+                    var_name,
+                    proc,
+                    self.channel,
+                    groups=matched_groups,
+                    mirror=mirror,
+                    symmetrize=symmetrize,
+                    kfactor=scale,
+                    noi=noi,
+                    constrained=not noConstraint,
+                )
+
+    def systHists(
+        self,
+        name,
+        hvar,
+        systAxes=[],
+        systAxesFlow=[],
+        labelsByAxis=None,
+        skipEntries=None,
+        baseName="",
+        systNameReplace=None,
+        formatWithValue=None,
+        outNames=[],
+    ):
+        if name == self.nominalName or len(systAxes) == 0:
+            return {name: hvar}
+        axNames = systAxes[:]
+        axLabels = labelsByAxis[:] if labelsByAxis is not None else systAxes[:]
+
+        if "downUpVar" in axNames and axNames[-1] != "downUpVar":
+            logger.warning(
+                "Axis 'downUpVar' detected, but not specified as trailing axis, this may lead to issues in pairing the up/down variation"
+            )
+
+        if not all([n in hvar.axes.name for n in axNames]):
+            raise ValueError(
+                f"Failed to find axis names {str(axNames)} in hist for syst {name}."
+                f"Axes in hist are {str(hvar.axes.name)}"
+            )
+
+        # Converting to a list becasue otherwise if you print it for debugging you loose it
+        def systIndexForAxis(axis, flow=False):
+            if type(axis) == hist.axis.StrCategory:
+                bins = [x for x in axis]
+            else:
+                bins = [a for a in range(axis.size)]
+            if flow and axis.traits.underflow:
+                bins = [hist.underflow, *bins]
+            if flow and axis.traits.overflow:
+                bins = [*bins, hist.overflow]
+            return bins
+
+        entries = list(
+            itertools.product(
+                *[
+                    systIndexForAxis(hvar.axes[ax], flow=ax in systAxesFlow)
+                    for ax in axNames
+                ]
+            )
+        )
+
+        def skipEntryDictToArray(h, skipEntry, axes):
+            naxes = len(axes)
+
+            if type(skipEntry) == dict:
+                skipEntryArr = np.full(naxes, -1, dtype=object)
+                nother_ax = h.ndim - naxes
+                for k, v in skipEntry.items():
+                    if k not in h.axes.name:
+                        raise ValueError(
+                            f"Invalid skipEntry expression {k} : {v}. Axis {k} is not in hist!"
+                        )
+                    idx = (
+                        h.axes.name.index(k) - nother_ax
+                    )  # Offset by the number of other axes, require that syst axes are the trailing ones
+                    if idx < 0:
+                        raise ValueError(
+                            f"Invalid skip entry! Axis {k} was found in position {idx+nother_ax} of {h.ndim} axes, but {naxes} syst axes were expected"
+                        )
+                    skipEntryArr[idx] = v
+                logger.debug(
+                    f"Expanded skipEntry for is {skipEntryArr}. Syst axes are {h.axes.name[-naxes:]}"
+                )
+            elif isinstance(skipEntry, (bool, int, float, str)):
+                skipEntryArr = (skipEntry,)
+            elif type(skipEntry) not in (np.array, list, tuple):
+                raise ValueError(
+                    f"Unexpected format for skipEntry. Must be either dict, sequence, or scalar type. found {type(skipEntry)}"
+                )
+            else:
+                skipEntryArr = skipEntry
+
+            if len(skipEntryArr) != naxes:
+                raise ValueError(
+                    "skipEntry tuple must have the same dimensions as the number of syst axes. "
+                    f"found {naxes} systematics and len(skipEntry) = {len(skipEntryArr)}."
+                )
+            return skipEntryArr
+
+        def expandSkipEntries(h, syst, skipEntries, axes):
+            updated_skip = []
+            for skipEntry in skipEntries:
+                skipEntry = skipEntryDictToArray(h, skipEntry, axes)
+                # The lookup is handled by passing an imaginary number,
+                # so detect these and then call the bin lookup on them
+                # np.iscomplex returns false for 0.j, but still want to detect that
+                to_lookup = np.array([isinstance(x, complex) for x in skipEntry])
+                skip_arr = np.array(skipEntry, dtype=object)
+                if to_lookup.any():
+                    naxes = len(axes)
+                    bin_lookup = np.array(
+                        [
+                            ax.index(x.imag)
+                            for x, ax in zip(skipEntry, h.axes[-naxes:])
+                            if isinstance(x, complex)
+                        ]
+                    )
+                    # Need to loop here rather than using skip_arr.real because the dtype is object to allow strings
+                    skip_arr = np.array([a.real for a in skip_arr])
+                    skip_arr[to_lookup] += bin_lookup
+                updated_skip.append(skip_arr)
+
+            return updated_skip
+
+        # TODO: Really would be better to use the axis names, not just indices
+        def excludeSystEntry(entry, entries_to_skip):
+            # Check if the entry in the hist matches one of the entries in entries_to_skip, across all axes
+            # Can use -1 to exclude all values of an axis
+            def match_entry(curr_entry, to_skip):
+                return (
+                    to_skip == -1
+                    or curr_entry == to_skip
+                    or re.match(str(to_skip), str(curr_entry))
+                )
+
+            for skipEntry in entries_to_skip:
+                if all(match_entry(e, m) for e, m in zip(entry, skipEntry)):
+                    return True
+            # If no matches were found for any of the entries_to_skip possibilities
+            return False
+
+        def systLabelForAxis(axLabel, entry, axis, formatWithValue=None):
+            if type(axis) == hist.axis.StrCategory:
+                if entry in axis:
+                    return entry
+                else:
+                    raise ValueError(
+                        f"Did not find label {entry} in categorical axis {axis}"
+                    )
+            if axLabel == "downUpVar":
+                return "Up" if entry else "Down"
+            if "{i}" in axLabel:
+                return axLabel.format(i=entry)
+
+            if formatWithValue:
+                if formatWithValue == "center":
+                    entry = axis.centers[entry]
+                elif formatWithValue == "low":
+                    entry = axis.edges[:-1][entry]
+                elif formatWithValue == "high":
+                    entry = axis.edges[1:][entry]
+                elif formatWithValue == "edges":
+                    low = axis.edges[entry]
+                    high = axis.edges[entry + 1]
+                    lowstr = (
+                        f"{low:0.1f}".replace(".", "p")
+                        if not low.is_integer()
+                        else str(int(low))
+                    )
+                    highstr = (
+                        f"{high:0.1f}".replace(".", "p")
+                        if not high.is_integer()
+                        else str(int(high))
+                    )
+                    entry = f"{lowstr}_{highstr}"
+                else:
+                    raise ValueError(
+                        f"Invalid formatWithValue choice {formatWithValue}."
+                    )
+
+            if type(entry) in [float, np.float64]:
+                entry = (
+                    f"{entry:0.1f}".replace(".", "p")
+                    if not entry.is_integer()
+                    else str(int(entry))
+                )
+            elif entry == hist.underflow:
+                entry = "U"
+            elif entry == hist.overflow:
+                entry = "O"
+
+            return f"{axLabel}{entry}"
+
+        outNames = outNames[:]
+        if len(outNames) == 0:
+            if skipEntries is not None:
+                skipEntries = expandSkipEntries(hvar, name, skipEntries, axNames)
+
+            for entry in entries:
+                if skipEntries and excludeSystEntry(entry, skipEntries):
+                    outNames.append("")
+                else:
+                    fwv = formatWithValue
+                    iname = baseName + "".join(
+                        [
+                            systLabelForAxis(
+                                al, entry[i], hvar.axes[ax], fwv[i] if fwv else fwv
+                            )
+                            for i, (al, ax) in enumerate(zip(axLabels, axNames))
+                        ]
+                    )
+                    if systNameReplace is not None:
+                        for rep in systNameReplace:
+                            iname = iname.replace(*rep)
+                            logger.debug(f"Replacement {rep} yields new name {iname}")
+                    outNames.append(iname)
+            if not len(outNames):
+                raise RuntimeError(f"Did not find any valid variations for syst {name}")
+
+        variations = [
+            hvar[{ax: binnum for ax, binnum in zip(axNames, entry)}]
+            for entry in entries
+        ]
+
+        if len(variations) != len(outNames):
+            raise RuntimeError(
+                f"The number of variations doesn't match the number of names."
+                f"Found {len(outNames)} names and {len(variations)} variations."
+            )
+
+        var_map = {n: var for n, var in zip(outNames, variations) if n}
+
+        # pair all up/down histograms, otherwise single histogram for mirroring
+        result = {}
+        for key in var_map.keys():
+            if not key:
+                continue
+            if key.endswith("Up"):
+                base_key = key[:-2]
+                key_down = base_key + "Down"
+                if key_down in outNames:
+                    result[base_key] = (var_map[key], var_map[key_down])
+                else:
+                    result[key] = var_map[key]
+            elif key.endswith("Down"):
+                if key[:-4] + "Up" in outNames:
+                    continue
+                else:
+                    result[key] = var_map[key]
+            else:
+                result[key] = var_map[key]
+        return result
+
+    def match_str_axis_entries(self, str_axis, match_re):
+        return [x for x in str_axis if any(re.match(r, x) for r in match_re)]
 
     @staticmethod
     def histName(baseName, procName="", syst=""):
