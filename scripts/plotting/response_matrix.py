@@ -87,7 +87,7 @@ logger.info(f"Will plot datasets {datasets}")
 
 groups.loadHistsForDatagroups(args.baseName, syst=args.histName, procsToRead=datasets)
 
-datagroups = groups.getDatagroups()
+datagroups = groups.groups
 
 translate_label = {
     "pt": r"$\mathrm{Reco}\ p_\mathrm{T}\ [\mathrm{GeV}]$",

@@ -463,7 +463,7 @@ if addVariation:
         unstack.append(varname)
 
 groups.sortByYields(args.baseName, nominalName=nominalName)
-histInfo = groups.getDatagroups()
+histInfo = groups.groups
 
 logger.info(f"Unstacked processes are {exclude}")
 prednames = list(

@@ -73,7 +73,7 @@ if __name__ == "__main__":
     groups.loadHistsForDatagroups(
         "iso_dxy", syst="", procsToRead=["QCD", "Wmunu"], applySelection=False
     )
-    histInfo = groups.getDatagroups()
+    histInfo = groups.groups
 
     hSig = histInfo["Wmunu"].hists["mt_met"]
     hBkg = histInfo["QCD"].hists["mt_met"]

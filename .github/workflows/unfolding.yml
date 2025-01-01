@@ -295,13 +295,13 @@ jobs:
           submodules: 'recursive'
           lfs: 'true'
 
-      - name: wmass theoryfit combine setup
+      - name: wmass theoryfit setup
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/setupCombine.py -i $HIST_FILE 
           --fitresult ${WREMNANTS_OUTDIR}/WMass_qGen_ptGen_absEtaGen_unfolding/fitresults.hdf5 --fitvar qGen-ptGen-absEtaGen 
           -o $WREMNANTS_OUTDIR --postfix theoryfit --baseName xnorm --realData
 
-      - name: wmass combine fit 
+      - name: wmass theoryfit fit 
         run: >- 
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh combinetf2/scripts/fit.py 
           $WREMNANTS_OUTDIR/WMass_qGen_ptGen_absEtaGen_theoryfit/WMass.hdf5 -o $WREMNANTS_OUTDIR/WMass_qGen_ptGen_absEtaGen_theoryfit/fitresults.hdf5
@@ -446,13 +446,13 @@ jobs:
           submodules: 'recursive'
           lfs: 'true'
 
-      - name: wlike theoryfit combine setup
+      - name: wlike theoryfit setup
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/setupCombine.py -i $HIST_FILE 
           --fitresult ${WREMNANTS_OUTDIR}/ZMassWLike_ptGen_absEtaGen_qGen_unfolding/fitresults.hdf5 --fitvar qGen-ptGen-absEtaGen 
           -o $WREMNANTS_OUTDIR --postfix theoryfit --baseName xnorm --realData
 
-      - name: wlike combine fit 
+      - name: wlike theoryfit fit 
         run: >- 
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh combinetf2/scripts/fit.py 
           $WREMNANTS_OUTDIR/ZMassWLike_qGen_ptGen_absEtaGen_theoryfit/ZMassWLike.hdf5 -o $WREMNANTS_OUTDIR/ZMassWLike_qGen_ptGen_absEtaGen_theoryfit/fitresults.hdf5

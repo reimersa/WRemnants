@@ -3,6 +3,7 @@ import json
 import os
 import re
 
+import combinetf2.io_tools
 import dash
 import dash_daq as daq
 import numpy as np
@@ -17,12 +18,7 @@ from plotly.subplots import make_subplots
 
 from utilities import logging
 from utilities.common import base_dir
-from utilities.io_tools import (
-    combinetf2_input,
-    conversion_tools,
-    hepdata_tools,
-    output_tools,
-)
+from utilities.io_tools import conversion_tools, hepdata_tools, output_tools
 from utilities.styles.styles import nuisance_groupings as groupings
 from wremnants import plot_tools
 
@@ -83,7 +79,6 @@ def plotImpacts(
     df,
     impact_title="",
     pulls=False,
-    normalize=False,
     oneSidedImpacts=False,
     pullrange=None,
     cmsDecor=None,
@@ -453,24 +448,33 @@ def readFitInfoFromFile(
     logger.debug("Read impacts for poi from file")
 
     if poi is not None:
-        out = combinetf2_input.read_impacts_poi(
+        out = combinetf2.io_tools.read_impacts_poi(
             fitresult,
             poi,
             group,
             pulls=not group,
             global_impacts=global_impacts,
             add_total=group,
-            stat=stat,
-            normalize=normalize,
         )
         if group:
             impacts, labels = out
+            if normalize:
+                idx = np.argwhere(labels == "Total")
+                impacts /= impacts[idx].flatten()
         else:
-            pulls, constraints, pulls_prefit, impacts, labels = out
+            pulls, pulls_prefit, constraints, constraints_prefit, impacts, labels = out
+            if normalize:
+                idx = np.argwhere(labels == poi)
+                impacts /= impacts[idx].flatten()
+
+        if stat > 0 and "stat" in labels:
+            idx = np.argwhere(labels == "stat")
+            impacts[idx] = stat
     else:
-        labels = combinetf2_input.get_syst_labels(fitresult)
-        pulls, constraints, pulls_prefit = combinetf2_input.get_pulls_and_constraints(
-            fitresult
+        labels = combinetf2.io_tools.get_syst_labels(fitresult)
+        _, pulls, constraints = combinetf2.io_tools.get_pulls_and_constraints(fitresult)
+        _, pulls_prefit, constraints_prefit = (
+            combinetf2.io_tools.get_pulls_and_constraints(fitresult, prefit=True)
         )
 
     apply_mask = (group and grouping) or filters
@@ -495,7 +499,10 @@ def readFitInfoFromFile(
         if apply_mask:
             impacts = impacts[mask]
 
-        df["impact"] = impacts * scale
+        if scale and not normalize:
+            impacts = impacts * scale
+
+        df["impact"] = impacts
         df["absimpact"] = np.abs(df["impact"])
 
     if saveForHepdata and not group:
@@ -603,9 +610,9 @@ def parseArgs():
         help="Impact mode",
     )
     parser.add_argument(
-        "--absolute",
+        "--normalize",
         action="store_true",
-        help="Not normalize impacts on cross sections and event numbers.",
+        help="Normalize impacts on poi, leading to relative uncertainties.",
     )
     parser.add_argument("--debug", action="store_true", help="Print debug output")
     parser.add_argument(
@@ -758,21 +765,26 @@ def producePlots(
 
     if poi and poi.startswith("massShift"):
         label = poi.replace("massShift", "")[0]
-        impact_title = f"Impact on <i>m</i><sub>{label}</sub> (MeV)"
+        impact_title = f"<i>m</i><sub>{label}</sub> (MeV)"
     elif poi and poi.startswith("massDiff"):
         if poi.startswith("massDiffCharge"):
-            impact_title = "Impact on mass diff. (charge) (MeV)"
+            impact_title = "mass diff. (charge) (MeV)"
         elif poi.startswith("massDiffEta"):
-            impact_title = "Impact on mass diff. η (MeV)"
+            impact_title = "mass diff. η (MeV)"
         else:
-            impact_title = "Impact on mass diff. (MeV)"
+            impact_title = "mass diff. (MeV)"
     elif poi and poi.startswith("width"):
-        impact_title = "Impact on width (MeV)"
+        impact_title = "width (MeV)"
     elif poi in ["pdfAlphaS"]:
         scale = 1.5
-        impact_title = "Impact on <i>α</i><sub>S</sub> in 10<sup>-3</sup>"
+        impact_title = "<i>α</i><sub>S</sub> in 10<sup>-3</sup>"
     else:
-        impact_title = poi
+        impact_title = str(poi)
+
+    if normalize:
+        impact_title = "Relative impact on " + impact_title.replace(" (MeV)", "")
+    else:
+        impact_title = "Impact on " + impact_title
 
     if not (group and args.output_mode == "output"):
         df = readFitInfoFromFile(
@@ -916,7 +928,6 @@ def producePlots(
         kwargs = dict(
             pulls=not args.noPulls and not group,
             impact_title=impact_title,
-            normalize=not args.absolute,
             oneSidedImpacts=args.oneSidedImpacts,
             pullrange=pullrange,
             cmsDecor=args.cmsDecor,
@@ -973,9 +984,9 @@ if __name__ == "__main__":
         with open(args.translate) as f:
             translate_label = json.load(f)
 
-    fitresult, meta = combinetf2_input.get_fitresult(args.inputFile, meta=True)
+    fitresult, meta = combinetf2.io_tools.get_fitresult(args.inputFile, meta=True)
     fitresult_ref = (
-        combinetf2_input.get_fitresult(args.referenceFile)
+        combinetf2.io_tools.get_fitresult(args.referenceFile)
         if args.referenceFile
         else None
     )
@@ -1000,7 +1011,7 @@ if __name__ == "__main__":
     if args.poi:
         pois = [args.poi]
     else:
-        pois = combinetf2_input.get_poi_names(fitresult)
+        pois = combinetf2.io_tools.get_poi_names(fitresult)
 
     for poi in pois:
         logger.info(f"Now at {poi}")
@@ -1012,6 +1023,7 @@ if __name__ == "__main__":
                 poi,
                 fitresult_ref=fitresult_ref,
                 pullrange=args.pullrange,
+                normalize=args.normalize,
                 meta=meta,
             )
         if args.mode in ["both", "group"]:
@@ -1024,5 +1036,6 @@ if __name__ == "__main__":
                 fitresult_ref=fitresult_ref,
                 grouping=grouping,
                 pullrange=args.pullrange,
+                normalize=args.normalize,
                 meta=meta,
             )

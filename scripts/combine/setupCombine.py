@@ -1380,7 +1380,6 @@ def setup(
         elif wlike:
             if args.helicityFitTheoryUnc:
                 theorySystSamples = []
-            theorySystSamples.append("single_v_nonsig_samples")
         if xnorm:
             theorySystSamples = ["signal_samples"]
 
@@ -2272,8 +2271,9 @@ if __name__ == "__main__":
         fitresult_data_dict, fitresult_data_cov = (
             combinetf2.io_tools.get_fitresult_data(fitresult)
         )
+
         writer.add_data_covariance(
-            fitresult_data_cov,
+            fitresult_data_cov.get(),
             add_bin_by_bin_stat_to_data_cov=not (
                 args.noMCStat or args.explicitSignalMCstat
             ),
@@ -2304,7 +2304,9 @@ if __name__ == "__main__":
             fitvar,
             genvar,
             channel=channel,
-            fitresult_data=fitresult_data_dict[channel] if args.fitresult else None,
+            fitresult_data=(
+                fitresult_data_dict[channel].get() if args.fitresult else None
+            ),
         )
 
         outnames.append(

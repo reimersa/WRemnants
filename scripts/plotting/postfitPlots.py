@@ -1,6 +1,7 @@
 import itertools
 import json
 
+import combinetf2.io_tools
 import hist
 import matplotlib.pyplot as plt
 import mplhep as hep
@@ -10,10 +11,9 @@ import scipy.stats
 from matplotlib import colormaps
 from matplotlib.lines import Line2D
 
-from narf import ioutils
 from utilities import boostHistHelpers as hh
 from utilities import common, logging, parsing
-from utilities.io_tools import combinetf2_input, input_tools, output_tools
+from utilities.io_tools import output_tools
 from utilities.styles import styles
 from wremnants import plot_tools
 
@@ -210,15 +210,10 @@ diff = not args.noLowerPanel and args.logTransform
 data = not args.noData
 
 # load .hdf5 file first, must exist in combinetf and combinetf2
-fitresult_h5py = combinetf2_input.get_fitresult(args.infile)
+fitresult, meta = combinetf2.io_tools.get_fitresult(args.infile, meta=True)
 
-if "results" in fitresult_h5py.keys():
-    fitresult = ioutils.pickle_load_h5py(fitresult_h5py["results"])
-else:
-    raise IOError("Unknown source, input file must be from combinetf2")
-
-meta = input_tools.get_metadata(args.infile)
-is_normalized = meta["args"].get("normalize", False) if meta is not None else False
+meta_info = meta["meta_info"]
+is_normalized = meta_info["args"].get("normalize", False) if meta is not None else False
 
 translate_selection = {
     "charge": r"$\mathit{q}^\mu$ = ",
@@ -889,8 +884,7 @@ def make_plots(
         )
 
 
-meta = ioutils.pickle_load_h5py(fitresult_h5py["meta"])
-command = meta["meta_info"]["command"]
+command = meta_info["command"]
 asimov = False
 if "-t-1" in command or "-t -1" in command or "-t" not in command:
     asimov = True

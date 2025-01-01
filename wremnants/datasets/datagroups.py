@@ -1157,7 +1157,7 @@ class Datagroups(object):
         )
 
         for proc in self.predictedProcesses():
-            logger.debug(f"Now  in channel {self.channel} at process {proc}")
+            logger.info(f"Add process {proc} in channel {self.channel}")
 
             # nominal histograms of prediction
             norm_proc_hist = self.groups[proc].hists[self.nominalName]
@@ -1165,6 +1165,9 @@ class Datagroups(object):
                 norm_proc_hist.variances()[...] = (
                     norm_proc_hist.variances() * bin_by_bin_stat_scale**2
                 )
+
+            if norm_proc_hist.axes.name != self.fit_axes:
+                norm_proc_hist = norm_proc_hist.project(*self.fit_axes)
 
             self.writer.add_process(
                 norm_proc_hist,
@@ -1185,7 +1188,19 @@ class Datagroups(object):
                 ]
             )
 
+        logger.info(f"Add data histogram")
+        if data_obs_hist.axes.name != self.fit_axes:
+            data_obs_hist = data_obs_hist.project(*self.fit_axes)
         self.writer.add_data(data_obs_hist, self.channel)
+
+        # add metadata to channel info
+        self.writer.channels[self.channel].update(
+            {
+                "era": self.era,
+                "flavor": self.flavor,
+                "lumi": self.lumi,
+            }
+        )
 
     def addSystematic(
         self,
@@ -1343,6 +1358,8 @@ class Datagroups(object):
         outNames=[],
     ):
         if name == self.nominalName or len(systAxes) == 0:
+            if hvar.axes.name != self.fit_axes:
+                hvar = hvar.project(*self.fit_axes)
             return {name: hvar}
         axNames = systAxes[:]
         axLabels = labelsByAxis[:] if labelsByAxis is not None else systAxes[:]
@@ -1548,7 +1565,11 @@ class Datagroups(object):
                 f"Found {len(outNames)} names and {len(variations)} variations."
             )
 
-        var_map = {n: var for n, var in zip(outNames, variations) if n}
+        var_map = {
+            n: var.project(*self.fit_axes) if var.axes.name != self.fit_axes else var
+            for n, var in zip(outNames, variations)
+            if n
+        }
 
         # pair all up/down histograms, otherwise single histogram for mirroring
         result = {}
@@ -1763,6 +1784,8 @@ class Datagroups(object):
             hdata = hh.sumHists(hists)
 
         logger.info(f"Write pseudodata {pseudodata}")
+        if hdata.axes.name != self.fit_axes:
+            hdata = hdata.project(*self.fit_axes)
         self.writer.add_pseudodata(hdata, pseudodata, self.channel)
 
     def addPseudodataHistograms(
@@ -1907,11 +1930,14 @@ class Datagroups(object):
                     logger.info(f"Write pseudodata {name}")
 
                     h = hdata[{pseudoDataAxes[idx]: idx}]
-
+                    if h.axes.name != self.fit_axes:
+                        h = h.project(*self.fit_axes)
                     self.writer.add_pseudodata(h, name, self.channel)
             else:
                 # pseudodata from alternative histogram that has no syst axis
                 logger.info(f"Write pseudodata {p}")
+                if hdata.axes.name != self.fit_axes:
+                    hdata = hdata.project(*self.fit_axes)
                 self.writer.add_pseudodata(hdata, p, self.channel)
 
     def addPseudodataHistogramsFitInput(
@@ -1934,6 +1960,8 @@ class Datagroups(object):
                     "For pseudodata fit input the only valid names are 'nominal' and 'syst'."
                 )
             logger.info(f"Write pseudodata {p}")
+            if phist.axes.name != self.fit_axes:
+                phist = phist.project(*self.fit_axes)
             self.writer.add_pseudodata(phist, p, self.channel)
 
     @staticmethod

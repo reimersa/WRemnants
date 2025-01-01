@@ -1,5 +1,6 @@
 import pickle
 
+import combinetf2.io_tools
 import hist
 import matplotlib.pyplot as plt
 import numpy as np
@@ -8,7 +9,7 @@ import pandas as pd
 import narf
 from utilities import boostHistHelpers as hh
 from utilities import logging, parsing
-from utilities.io_tools import combinetf2_input, input_tools, output_tools
+from utilities.io_tools import input_tools, output_tools
 from wremnants import plot_tools, syst_tools
 
 parser = parsing.plot_parser()
@@ -66,7 +67,7 @@ def quadrature_sum_hist(hists, is_down):
 
 
 def load_hist(filename, fittype="postfit", helicity=False):
-    fitresult = combinetf2_input.get_fitresult(filename)
+    fitresult = combinetf2.io_tools.get_fitresult(filename)
     obs = {args.obs, "helicity", "chargeVgen"} if helicity else {args.obs}
     if "projections" in fitresult.keys() and len(fitresult["projections"]):
         fitresult = fitresult["projections"]

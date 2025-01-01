@@ -1,104 +1,111 @@
-import h5py
-import numpy as np
+import itertools
+import re
 
-from narf import ioutils
+import combinetf2.io_tools
+import pandas as pd
+
 from utilities import logging
 
 logger = logging.child_logger(__name__)
 
 
-def get_fitresult(fitresult_filename, meta=False):
-    h5file = h5py.File(fitresult_filename, mode="r")
-    h5results = ioutils.pickle_load_h5py(h5file["results"])
-    if meta:
-        meta = ioutils.pickle_load_h5py(h5file["meta"])
-        return h5results, meta
-    return h5results
+def read_groupunc_df(filename, uncs, rename_cols={}, name=None):
+    ref_massw = 80379
+    ref_massz = 91187.6
 
-
-def get_poi_names(fitresult):
-    h = fitresult["impacts"].get()
-    return np.array(h.axes["parms"])
-
-
-def get_syst_labels(fitresult):
-    h = fitresult["parms"].get()
-    return np.array(h.axes["parms"])
-
-
-def read_impacts_poi(
-    fitresult,
-    poi,
-    grouped=False,
-    global_impacts=False,
-    pulls=False,
-    sort=True,
-    add_total=True,
-    stat=0.0,
-    normalize=True,
-):
-    # read impacts of a single POI
-    impact_name = "impacts"
-    if global_impacts:
-        impact_name = f"global_{impact_name}"
-    if grouped:
-        impact_name += "_grouped"
-
-    h_impacts = fitresult[impact_name].get()
-    h_impacts = h_impacts[{"parms": poi}]
-
-    impacts = h_impacts.values()
-    labels = np.array(h_impacts.axes["impacts"])
-
-    if sort:
-        order = np.argsort(impacts)
-        impacts = impacts[order]
-        labels = labels[order]
-
-    if add_total or normalize:
-        h_parms = fitresult["parms"].get()
-        total = np.sqrt(h_parms[{"parms": poi}].variance)
-
-        if add_total:
-            impacts = np.append(impacts, total)
-            labels = np.append(labels, "Total")
-
-        if normalize:
-            impacts /= total
-
-    if stat > 0:
-        idx = np.argwhere(labels == "stat")
-        impacts[idx] = stat
-
-    if pulls:
-        pulls, constraints, pulls_prefit = get_pulls_and_constraints(fitresult)
-        if sort:
-            pulls = pulls[order]
-            constraints = constraints[order]
-            pulls_prefit = pulls_prefit[order]
-
-        return pulls, constraints, pulls_prefit, impacts, labels
-
-    return impacts, labels
-
-
-def get_pulls_and_constraints(fitresult):
-    h_parms = fitresult["parms"].get()
-    h_parms_prefit = fitresult["parms_prefit"].get()
-
-    pulls = h_parms.values()
-    constraints = np.sqrt(h_parms.variances())
-    pulls_prefit = np.zeros_like(pulls, dtype=float)
-
-    return pulls, constraints, pulls_prefit
-
-
-def get_theoryfit_data(fitresult):
-    logger.info(
-        f"Prepare theory fit: load measured differential cross secction distribution and covariance matrix"
+    fitresult = combinetf2.io_tools.get_fitresult(filename)
+    df = combinetf2.io_tools.read_impacts_pois(
+        fitresult, poi_type="nois", group=True, uncertainties=uncs
     )
 
-    h_data = {k: h for k, h in fitresult["hist_postfit_inclusive"].items()}
-    h_cov = fitresult["hist_cov_postfit_inclusive"]
+    df.iloc[0, 1:] = df.iloc[0, 1:] * 100
+    df.iloc[0, 1] += ref_massz if df.loc[0, "Name"] == "massShiftZ100MeV" else ref_massw
 
-    return h_data, h_cov
+    if rename_cols:
+        df.rename(columns=rename_cols, inplace=True)
+    if name:
+        df.loc[0, "Name"] = name
+
+    return df
+
+
+def read_all_groupunc_df(filenames, uncs, rename_cols={}, names=[]):
+    dfs = [
+        read_groupunc_df(f, uncs, rename_cols, n)
+        for f, n in itertools.zip_longest(filenames, names)
+    ]
+
+    return pd.concat(dfs)
+
+
+def decode_poi_bin(name, var):
+    name_split = name.split(var)
+    if len(name_split) == 1:
+        return None
+    else:
+        # capture one or more consecutive digits; filter out empty strings
+        return next(filter(None, re.split(r"(\d+)", name_split[-1])))
+
+
+def filter_poi_bins(names, gen_axes, selections={}, base_processes=[], flow=False):
+    if isinstance(gen_axes, str):
+        gen_axes = [gen_axes]
+    if isinstance(base_processes, str):
+        base_processes = [base_processes]
+    df = pd.DataFrame({"Name": names})
+    for axis in gen_axes:
+        df[axis] = df["Name"].apply(lambda x, a=axis: decode_poi_bin(x, a))
+        df.dropna(inplace=True)
+        if flow:
+            # set underflow to -1, overflow to max bin number+1
+            max_bin = pd.to_numeric(df[axis], errors="coerce").max()
+            df[axis] = df[axis].apply(
+                lambda x, iu=max_bin: (
+                    -1
+                    if x[0] == "U"
+                    else iu + 1 if x[0] == "O" else int(x) if x is not None else None
+                )
+            )
+        else:
+            # set underflow and overflow to None
+            df[axis] = df[axis].apply(
+                lambda x: None if x is None or x[0] in ["U", "O"] else int(x)
+            )
+
+    # filter out rows with NaNs
+    mask = ~df.isna().any(axis=1)
+    # select rows from base process
+    if len(base_processes):
+        mask = mask & df["Name"].apply(
+            lambda x, b=base_processes: any([x.startswith(p) for p in b])
+        )
+    # remove rows that have additional axes that are not required (strip off process prefix and poi type postfix and compare length of gen axes assuming they are separated by '_')
+    mask = mask & df["Name"].apply(
+        lambda x, a=gen_axes, b=base_processes: any(
+            (
+                len(x.replace(p, "").split("_")[1:-1]) == len(a)
+                if x.startswith(p)
+                else False
+            )
+            for p in b
+        )
+    )
+    # gen bin selections
+    for k, v in selections.items():
+        mask = mask & (df[k] == v)
+
+    filtered_df = df[mask]
+
+    return filtered_df.sort_values(list(gen_axes)).index.to_list()
+
+
+def select_pois(df, gen_axes=[], selections={}, base_processes=[], flow=False):
+    return df.iloc[
+        filter_poi_bins(
+            df["Name"].values,
+            gen_axes,
+            selections=selections,
+            base_processes=base_processes,
+            flow=flow,
+        )
+    ]

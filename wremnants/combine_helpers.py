@@ -347,7 +347,7 @@ def add_noi_unfolding_variations(
     )
 
     def disable_flow(h, axes_names=["absYVGen", "absEtaGen"]):
-        # disable flow for gen axes as these events are in out of acceptance
+        # disable flow for syst axes to not add systematic uncertainties in these bins
         for var in axes_names:
             if var in h.axes.name:
                 h = hh.disableFlow(h, var)
@@ -371,11 +371,11 @@ def add_noi_unfolding_variations(
     if xnorm:
 
         def make_poi_xnorm_variations(h, poi_axes, poi_axes_syst, scale):
-            h = disable_flow(h)
             hVar = hh.expand_hist_by_duplicate_axes(
                 h, poi_axes[::-1], poi_axes_syst[::-1]
             )
             slices = [np.newaxis if a in h.axes else slice(None) for a in hVar.axes]
+            hVar = disable_flow(hVar, axes_names=["_absYVGen", "_absEtaGen"])
             hVar.values(flow=True)[...] = hVar.values(flow=True) * scale[*slices]
             return hh.addHists(h, hVar)
 
@@ -399,8 +399,8 @@ def add_noi_unfolding_variations(
                 }
             ]
             hVar = h[{"acceptance": True}]
-            hVar = disable_flow(hVar)
             slices = [np.newaxis if a in hNom.axes else slice(None) for a in hVar.axes]
+            hVar = disable_flow(hVar)
             hVar.values(flow=True)[...] = hVar.values(flow=True) * scale[*slices]
             return hh.addHists(hNom, hVar)
 
