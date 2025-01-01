@@ -5,7 +5,7 @@ import pandas as pd
 
 from utilities import logging, parsing
 from utilities.io_tools import output_tools
-from utilities.io_tools.combinetf_input import get_fitresult
+from utilities.io_tools.combinetf2_input import get_fitresult
 from wremnants import plot_tools
 
 

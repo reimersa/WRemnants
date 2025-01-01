@@ -32,15 +32,13 @@ class Datagroups(object):
     }
 
     def __init__(self, infile, mode=None, **kwargs):
-        self.h5file = None
-        self.rtfile = None
         if infile.endswith(".pkl.lz4"):
             with lz4.frame.open(infile) as f:
                 self.results = pickle.load(f)
         elif infile.endswith(".hdf5"):
             logger.info("Load input file")
-            self.h5file = h5py.File(infile, "r")
-            self.results = input_tools.load_results_h5py(self.h5file)
+            h5file = h5py.File(infile, "r")
+            self.results = input_tools.load_results_h5py(h5file)
         else:
             raise ValueError(f"{infile} has unsupported file type")
 
@@ -102,11 +100,11 @@ class Datagroups(object):
             logger.warning(
                 f"No data process was selected, normalizing MC to {self.lumi }/fb"
             )
+
         self.lumiScale = 1
         self.lumiScaleVarianceLinearly = []
 
         self.channel = "ch0"
-        self.binByBinStatScale = 1.0
         self.excludeSyst = None
         self.keepSyst = None
         self.customSystMapping = {}
@@ -142,12 +140,6 @@ class Datagroups(object):
                 if not any([v["dataset"]["name"].startswith(x) for x in not_startswith])
             }
         return dsets
-
-    def __del__(self):
-        if self.h5file:
-            self.h5file.close()
-        if self.rtfile:
-            self.rtfile.Close()
 
     def addGroup(self, name, **kwargs):
         group = Datagroup(name, **kwargs)
@@ -416,11 +408,8 @@ class Datagroups(object):
         return meta_data["args"][arg]
 
     def getScriptCommand(self):
-        if self.rtfile:
-            return self.rtfile.Get("meta_info/command").GetTitle()
-        else:
-            meta_info = self.getMetaInfo()
-            return meta_info["command"]
+        meta_info = self.getMetaInfo()
+        return meta_info["command"]
 
     # remove a histogram that is loaded into memory from a proxy object
     def release_results(self, histname):
@@ -676,9 +665,6 @@ class Datagroups(object):
         # Avoid situation where the nominal is read for all processes for this syst
         if nominalIfMissing and not foundExact:
             raise ValueError(f"Did not find systematic {syst} for any processes!")
-
-    def getDatagroups(self):
-        return self.groups
 
     def getNames(self, matches=[], exclude=False, match_exact=False):
         # This method returns the names from the defined groups, unless one selects further.
@@ -1061,7 +1047,11 @@ class Datagroups(object):
 
         return h
 
-    def addProcessGroup(self, name, procFilter):
+    def addProcessGroup(self, name, startsWith=[], excludeMatch=[]):
+        procFilter = lambda x: (
+            any(x.startswith(init) for init in startsWith) or len(startsWith) == 0
+        ) and all(excl not in x for excl in excludeMatch)
+
         self.procGroups[name] = self.filteredProcesses(procFilter)
         if not self.procGroups[name]:
             logger.warning(
@@ -1148,7 +1138,11 @@ class Datagroups(object):
         return self.groups[proc].hists["syst"]
 
     def addNominalHistograms(
-        self, forceNonzero=False, real_data=False, bin_by_bin_stat_scale=1.0
+        self,
+        forceNonzero=False,
+        real_data=False,
+        bin_by_bin_stat_scale=1.0,
+        fitresult_data=None,
     ):
         if self.writer is None:
             raise RuntimeError("Writer must be defined to add nominal histograms")
@@ -1179,7 +1173,9 @@ class Datagroups(object):
                 signal=proc in self.unconstrainedProcesses,
             )
 
-        if real_data:
+        if fitresult_data is not None:
+            data_obs_hist = fitresult_data
+        elif real_data:
             data_obs_hist = self.groups[self.dataName].hists[self.nominalName]
         else:
             data_obs_hist = hh.sumHists(
@@ -1575,8 +1571,370 @@ class Datagroups(object):
                 result[key] = var_map[key]
         return result
 
-    def match_str_axis_entries(self, str_axis, match_re):
-        return [x for x in str_axis if any(re.match(r, x) for r in match_re)]
+    def addPseudodataHistogramFakes(
+        self, pseudodata, pseudodataGroups, forceNonzero=False
+    ):
+        pseudodataGroups.nominalName = self.nominalName
+        pseudodataGroups.rebinOp = self.rebinOp
+        pseudodataGroups.rebinBeforeSelection = self.rebinBeforeSelection
+        pseudodataGroups.lumiScale = self.lumiScale
+        pseudodataGroups.lumiScaleVarianceLinearly = self.lumiScaleVarianceLinearly
+
+        processes = [
+            x
+            for x in pseudodataGroups.groups.keys()
+            if x != self.dataName and self.pseudoDataProcsRegexp.match(x)
+        ]
+        processes = self.expandProcesses(processes)
+
+        processesFromNomi = [
+            x
+            for x in pseudodataGroups.groups.keys()
+            if x != self.dataName and not self.pseudoDataProcsRegexp.match(x)
+        ]
+
+        if pseudodata in ["closure", "truthMC"]:
+            # get the nonclosure for fakes/multijet background from QCD MC
+            pseudodataGroups.loadHistsForDatagroups(
+                baseName=self.nominalName,
+                syst=self.nominalName,
+                label="syst",
+                procsToRead=pseudodataGroups.groups.keys(),
+                forceNonzero=forceNonzero,
+                sumFakesPartial=False,
+                applySelection=False,
+            )
+            procDict = pseudodataGroups.groups
+            gTruth = procDict["QCDTruth"]
+            hTruth = gTruth.histselector.get_hist(gTruth.hists["syst"])
+
+            # now load the nominal histograms
+            # only load nominal histograms that are not already loaded
+            processesFromNomiToLoad = [
+                proc
+                for proc in self.groups.keys()
+                if self.nominalName not in self.groups[proc].hists
+            ]
+            if len(processesFromNomiToLoad):
+                self.loadHistsForDatagroups(
+                    baseName=self.nominalName,
+                    syst=self.nominalName,
+                    procsToRead=processesFromNomiToLoad,
+                    forceNonzero=forceNonzero,
+                )
+            if "QCD" not in procDict:
+                # use truth MC as QCD
+                logger.info(f"Have MC QCD truth {hTruth.sum()}")
+                hFake = hTruth
+            else:
+                # compute the nonclosure correction
+                gPred = procDict["QCD"]
+                hPred = gPred.histselector.get_hist(gPred.hists["syst"])
+                logger.info(
+                    f"Have MC QCD truth {hTruth.sum()} and predicted {hPred.sum()}"
+                )
+                histCorr = hh.divideHists(hTruth, hPred)
+
+                # apply the nonclosure to fakes derived from data
+                hFake = self.groups[self.fakeName].hists[self.nominalName]
+                if any([a not in hFake.axes for a in histCorr.axes]):
+                    # TODO: Make if work for arbitrary axes (maybe as an action when loading nominal histogram, before fakerate axes are integrated e.g. in mt fit)
+                    raise NotImplementedError(
+                        f"The multijet closure test is not implemented for arbitrary axes, the required axes are {histCorr.axes.name}"
+                    )
+                hFake = hh.multiplyHists(hFake, histCorr)
+
+                # apply variances from hCorr to fakes to account for stat uncertainty
+                hFakeNominal = self.groups[self.getFakeName()].hists[self.nominalName]
+                hFakeNominal.variances(flow=True)[...] = hFake.variances(flow=True)
+                self.groups[self.getFakeName()].hists[self.nominalName] = hFakeNominal
+
+            # done, now sum all histograms
+            hists_data = [
+                self.groups[x].hists[self.nominalName]
+                for x in self.predictedProcesses()
+                if x != self.fakeName
+            ]
+            hdata = hh.sumHists([*hists_data, hFake]) if len(hists_data) > 0 else hFake
+
+        elif pseudodata in ["dataClosure", "mcClosure"]:
+            # build the pseudodata by adding the nonclosure
+
+            # build the pseudodata by adding the nonclosure
+            # first load the nonclosure
+            if pseudodata == "dataClosure":
+                pseudodataGroups.loadHistsForDatagroups(
+                    baseName=self.nominalName,
+                    syst=self.nominalName,
+                    label=pseudodata,
+                    procsToRead=[self.fakeName],
+                    forceNonzero=forceNonzero,
+                    sumFakesPartial=not self.simultaneousABCD,
+                    applySelection=False,
+                )
+                hist_fake = pseudodataGroups.groups[self.fakeName].hists[pseudodata]
+            elif pseudodata == "mcClosure":
+                hist_fake = pseudodataGroups.results["QCDmuEnrichPt15PostVFP"][
+                    "output"
+                ]["unweighted"].get()
+
+            fakeselector = self.groups[self.fakeName].histselector
+
+            _0, _1 = fakeselector.calculate_fullABCD_smoothed(
+                hist_fake, signal_region=True
+            )
+            params_d = fakeselector.spectrum_regressor.params
+            cov_d = fakeselector.spectrum_regressor.cov
+
+            hist_fake = hh.scaleHist(hist_fake, fakeselector.global_scalefactor)
+            _0, _1 = fakeselector.calculate_fullABCD_smoothed(hist_fake)
+            params = fakeselector.spectrum_regressor.params
+            cov = fakeselector.spectrum_regressor.cov
+
+            # add the nonclosure by adding the difference of the parameters
+            fakeselector.spectrum_regressor.external_params = params_d - params
+            # load the pseudodata including the nonclosure
+            self.loadHistsForDatagroups(
+                baseName=self.nominalName,
+                syst=self.nominalName,
+                label=pseudodata,
+                procsToRead=[x for x in self.groups.keys() if x != self.getDataName()],
+                forceNonzero=forceNonzero,
+            )
+            # adding the pseudodata
+            hdata = hh.sumHists(
+                [
+                    self.groups[x].hists[pseudodata]
+                    for x in self.groups.keys()
+                    if x != self.getDataName()
+                ]
+            )
+
+            # remove the parameter offset again
+            fakeselector.spectrum_regressor.external_params = None
+            # add the covariance matrix from the nonclosure to the model
+            fakeselector.external_cov = cov + cov_d
+        elif pseudodata.split("-")[0] in ["simple", "extended1D", "extended2D"]:
+            # pseudodata for fakes using data with different fake estimation, change the selection but still keep the nominal histogram
+            parts = pseudodata.split("-")
+            if len(parts) == 2:
+                pseudoDataMode, pseudoDataSmoothingMode = parts
+            else:
+                pseudoDataMode = pseudodata
+                pseudoDataSmoothingMode = "full"
+
+            pseudodataGroups.set_histselectors(
+                pseudodataGroups.getNames(),
+                self.nominalName,
+                mode=pseudoDataMode,
+                smoothing_mode=pseudoDataSmoothingMode,
+                smoothingOrderFakerate=3,
+                integrate_x=True,
+                mcCorr=[None],
+            )
+
+            pseudodataGroups.loadHistsForDatagroups(
+                baseName=self.nominalName,
+                syst=self.nominalName,
+                label=pseudodata,
+                procsToRead=pseudodataGroups.groups.keys(),
+                forceNonzero=forceNonzero,
+            )
+            procDict = pseudodataGroups.groups
+            hists = [
+                procDict[proc].hists[pseudodata]
+                for proc in pseudodataGroups.groups.keys()
+            ]
+
+            # add BBB stat on top of nominal
+            hist_fake = self.groups[self.getFakeName()].hists[self.nominalName]
+            hist_fake.variances(flow=True)[...] = (
+                pseudodataGroups.groups[self.getFakeName()]
+                .hists[pseudodata]
+                .variances(flow=True)
+            )
+            self.groups[self.getFakeName()].hists[self.nominalName] = hist_fake
+            # now add possible processes from nominal
+            logger.warning(
+                f"Making pseudodata summing these processes: {pseudodataGroups.groups.keys()}"
+            )
+
+            # done, now sum all histograms
+            hdata = hh.sumHists(hists)
+
+        logger.info(f"Write pseudodata {pseudodata}")
+        self.writer.add_pseudodata(hdata, pseudodata, self.channel)
+
+    def addPseudodataHistograms(
+        self,
+        pseudodataGroups,
+        pseudodata,
+        pseudodata_axes=[None],
+        idxs=[None],
+        pseudoDataProcsRegexp=".*",
+        forceNonzero=False,
+    ):
+
+        pseudodataGroups.nominalName = self.nominalName
+        pseudodataGroups.rebinOp = self.rebinOp
+        pseudodataGroups.rebinBeforeSelection = self.rebinBeforeSelection
+        pseudodataGroups.lumiScale = self.lumiScale
+        pseudodataGroups.lumiScaleVarianceLinearly = self.lumiScaleVarianceLinearly
+
+        pseudoDataAxes = pseudodata_axes[:]
+        if len(pseudodata) != len(pseudodata_axes):
+            if len(pseudodata_axes) == 1:
+                pseudoDataAxes = pseudodata_axes * len(pseudodata)
+            else:
+                raise RuntimeError(
+                    f"Found {len(pseudodata)} histograms for pseudodata but {len(pseudodata_axes)} corresponding axes, need either the same number or exactly 1 axis to be specified."
+                )
+
+        idxs = [int(idx) if idx is not None and idx.isdigit() else idx for idx in idxs]
+        if len(pseudodata) == 1:
+            pseudoDataIdxs = [idxs]
+        elif len(pseudodata) > 1:
+            if len(idxs) == 1:
+                pseudoDataIdxs = [[idxs[0]]] * len(pseudodata)
+            elif len(pseudodata) == len(idxs):
+                pseudoDataIdxs = [[idxs[i]] for i in range(len(idxs))]
+            else:
+                raise RuntimeError(
+                    f"""Found {len(pseudodata)} histograms for pseudodata but {len(idxs)} corresponding indices,
+                    need either 1 histogram or exactly 1 index or the same number of histograms and indices to be specified."""
+                )
+
+        # name for the pseudodata set to be written into the output file
+        pseudoDataProcsRegexp = re.compile(pseudoDataProcsRegexp)
+
+        processes = [
+            x
+            for x in pseudodataGroups.groups.keys()
+            if x != self.dataName and pseudoDataProcsRegexp.match(x)
+        ]
+        processes = self.expandProcesses(processes)
+
+        processesFromNomi = [
+            x
+            for x in pseudodataGroups.groups.keys()
+            if x != self.dataName and not pseudoDataProcsRegexp.match(x)
+        ]
+
+        for idx, p in enumerate(pseudodata):
+            pseudodataGroups.loadHistsForDatagroups(
+                baseName=self.nominalName,
+                syst=p,
+                label=p,
+                procsToRead=processes,
+                forceNonzero=forceNonzero,
+            )
+            hists = [
+                self.groups[proc].hists[p]
+                for proc in processes
+                if proc not in processesFromNomi
+            ]
+            # now add possible processes from nominal
+            logger.warning(f"Making pseudodata summing these processes: {processes}")
+            if len(processesFromNomi):
+                # only load nominal histograms that are not already loaded
+                processesFromNomiToLoad = [
+                    proc
+                    for proc in processesFromNomi
+                    if self.nominalName not in self.groups[proc].hists
+                ]
+                if len(processesFromNomiToLoad):
+                    logger.warning(
+                        f"These processes are taken from nominal datagroups: {processesFromNomiToLoad}"
+                    )
+                    self.loadHistsForDatagroups(
+                        baseName=self.nominalName,
+                        syst=self.nominalName,
+                        procsToRead=processesFromNomiToLoad,
+                        forceNonzero=forceNonzero,
+                    )
+                hists.extend(
+                    [
+                        self.groups[proc].hists[self.nominalName]
+                        for proc in processesFromNomi
+                    ]
+                )
+            # done, now sum all histograms
+            hdata = hh.sumHists(hists)
+            if pseudoDataAxes[idx] is None:
+                extra_ax = [ax for ax in hdata.axes.name if ax not in self.fit_axes]
+                if len(extra_ax) > 0 and extra_ax[-1] in [
+                    "vars",
+                    "systIdx",
+                    "tensor_axis_0",
+                ]:
+                    pseudoDataAxes[idx] = extra_ax[-1]
+                    logger.info(f"Setting pseudoDataSystAx[{idx}] to {extra_ax[-1]}")
+                    if pseudoDataIdxs[idx] == [None]:
+                        pseudoDataIdxs[idx] = [0]
+                        logger.info(f"Setting pseudoDataIdxs[{idx}] to {[0]}")
+            if (
+                pseudoDataAxes[idx] is not None
+                and pseudoDataAxes[idx] not in hdata.axes.name
+            ):
+                raise RuntimeError(
+                    f"Pseudodata axis {pseudoDataAxes[idx]} not found in {hdata.axes.name}."
+                )
+
+            if pseudoDataAxes[idx] is not None:
+                pseudo_axis = hdata.axes[pseudoDataAxes[idx]]
+
+                if (
+                    len(pseudoDataIdxs[idx]) == 1
+                    and pseudoDataIdxs[idx][0] is not None
+                    and int(pseudoDataIdxs[idx][0]) == -1
+                ):
+                    pseudoDataIdxs[idx] = pseudo_axis
+
+                for syst_idx in pseudoDataIdxs[idx]:
+                    idx = 0 if syst_idx is None else syst_idx
+
+                    if type(pseudo_axis) == hist.axis.StrCategory:
+                        syst_bin = (
+                            pseudo_axis.bin(idx) if type(idx) == int else str(idx)
+                        )
+                    else:
+                        syst_bin = (
+                            str(pseudo_axis.index(idx))
+                            if type(idx) == int
+                            else str(idx)
+                        )
+                    name = f"{p}_{pseudoDataAxes[idx]}{f'_{syst_bin}' if syst_idx not in [None, 0] else ''}"
+                    logger.info(f"Write pseudodata {name}")
+
+                    h = hdata[{pseudoDataAxes[idx]: idx}]
+
+                    self.writer.add_pseudodata(h, name, self.channel)
+            else:
+                # pseudodata from alternative histogram that has no syst axis
+                logger.info(f"Write pseudodata {p}")
+                self.writer.add_pseudodata(hdata, p, self.channel)
+
+    def addPseudodataHistogramsFitInput(
+        self,
+        pseudodata,
+        pseudodataFitInput,
+        pseudoDataFitInputChannel,
+        pseudodataFitInputDownUp,
+    ):
+        channel = pseudoDataFitInputChannel
+        for idx, p in enumerate(pseudodata):
+            if p == "nominal":
+                phist = pseudodataFitInput.nominal_hists[channel]
+            elif p == "syst":
+                phist = pseudodataFitInput.syst_hists[channel][
+                    {"DownUp": pseudodataFitInputDownUp}
+                ]
+            else:
+                raise ValueError(
+                    "For pseudodata fit input the only valid names are 'nominal' and 'syst'."
+                )
+            logger.info(f"Write pseudodata {p}")
+            self.writer.add_pseudodata(phist, p, self.channel)
 
     @staticmethod
     def histName(baseName, procName="", syst=""):

@@ -1,11 +1,11 @@
 import argparse
 
+import combinetf2.io_tools
 import numpy as np
 import ROOT
 import scipy
 
 from narf import ioutils
-from utilities.io_tools import combinetf_input
 
 parser = argparse.ArgumentParser()
 parser.add_argument("infile", type=str, help="combinetf output ROOT file")
@@ -15,7 +15,9 @@ rtfile = ROOT.TFile(args.infile)
 tree = rtfile.Get("fitresults")
 tree.GetEntry(0)
 
-fitresult_h5py = combinetf_input.get_fitresult(args.infile.replace(".root", ".hdf5"))
+fitresult_h5py = combinetf2.io_tools.get_fitresult(
+    args.infile.replace(".root", ".hdf5")
+)
 meta = ioutils.pickle_load_h5py(fitresult_h5py["meta"])
 nbins = sum(
     [np.prod([len(a) for a in info["axes"]]) for info in meta["channel_info"].values()]

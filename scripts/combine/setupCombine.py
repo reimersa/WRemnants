@@ -2,6 +2,8 @@
 import argparse
 import math
 
+import combinetf2.debugdata
+import combinetf2.io_tools
 import hist
 import numpy as np
 
@@ -103,29 +105,13 @@ def make_subparsers(parser):
 def make_parser(parser=None):
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "-i",
-        "--inputFile",
-        action="append",
-        type=str,
-        help="Input file with histograms; specify multiple input files for combining multiple channels '-i $FILE1 -i $FILE2 ...'",
-    )
-    parser.add_argument(
-        "-n",
-        "--baseName",
-        action="append",
-        type=str,
-        default=["nominal"],
-        help="Histogram name in the file, specify multiple for multiple input files '-n nominal -n alternative ...'",
-    )
-    # TODO: do the same for the other per channel options
-
-    parser.add_argument(
         "-o",
         "--outfolder",
         type=str,
         default=".",
         help="Output folder with the file to be fit (subfolder WMass or ZMassWLike is created automatically inside)",
     )
+    parser.add_argument("-i", "--inputFile", nargs="+", type=str)
     parser.add_argument(
         "-p", "--postfix", type=str, help="Postfix for output file name", default=None
     )
@@ -172,6 +158,14 @@ def make_parser(parser=None):
         type=str,
         default="",
         help="Regular expression to keep some systematics, overriding --excludeNuisances. Can be used to keep only some systs while excluding all the others with '.*'",
+    )
+    parser.add_argument(
+        "-n",
+        "--baseName",
+        type=str,
+        nargs="+",
+        default=["nominal"],
+        help="Histogram name in the file (e.g., 'nominal')",
     )
     parser.add_argument(
         "--qcdProcessName",
@@ -236,9 +230,6 @@ def make_parser(parser=None):
             Note that statistical fluctuations in histograms cannot be lifted, so this option can lead to spurious constraints of systematic uncertainties 
             when the argument of lumiScale is larger than unity, because bin-by-bin fluctuations will not be covered by the assumed uncertainty.
             """,
-    )
-    parser.add_argument(
-        "--sumChannels", action="store_true", help="Only use one channel"
     )
     parser.add_argument(
         "--fitXsec", action="store_true", help="Fit signal inclusive cross section"
@@ -654,6 +645,7 @@ def make_parser(parser=None):
         "--pseudoDataFakes",
         type=str,
         nargs="+",
+        default=[],
         choices=[
             "truthMC",
             "closure",
@@ -739,6 +731,7 @@ def setup(
     fitvar,
     genvar=None,
     channel="ch0",
+    fitresult_data=None,
 ):
     xnorm = inputBaseName == "xnorm"
 
@@ -773,6 +766,7 @@ def setup(
     )
 
     datagroups.fit_axes = fitvar
+    datagroups.channel = channel
 
     if args.angularCoeffs:
         datagroups.setGlobalAction(
@@ -781,7 +775,7 @@ def setup(
             )
         )
 
-    if not xnorm and (args.axlim or args.rebin or args.absval):
+    if args.axlim or args.rebin or args.absval:
         datagroups.set_rebin_action(
             fitvar,
             args.axlim,
@@ -989,8 +983,6 @@ def setup(
             datagroups.getNames(), inputBaseName, **histselector_kwargs
         )
 
-    # Start to create the CardTool object, customizing everything
-
     logger.debug(f"Making datacards with these processes: {datagroups.getProcesses()}")
 
     datagroups.nominalName = inputBaseName
@@ -1004,71 +996,6 @@ def setup(
         }
     )
     datagroups.setCustomSystForCard(args.excludeNuisances, args.keepNuisances)
-
-    # if args.pseudoData:
-    #     cardTool.setPseudodata(
-    #         args.pseudoData,
-    #         args.pseudoDataAxes,
-    #         args.pseudoDataIdxs,
-    #         args.pseudoDataProcsRegexp,
-    #     )
-    #     if args.pseudoDataFile:
-    #         # FIXME: should make sure to apply the same customizations as for the nominal datagroups so far
-    #         pseudodataGroups = Datagroups(
-    #             args.pseudoDataFile,
-    #             excludeGroups=excludeGroup,
-    #             filterGroups=filterGroup,
-    #         )
-    #         if not xnorm and (args.axlim or args.rebin or args.absval):
-    #             pseudodataGroups.set_rebin_action(
-    #                 fitvar, args.axlim, args.rebin, args.absval, rename=False
-    #             )
-
-    #         if wmass and not xnorm:
-    #             pseudodataGroups.fakerate_axes = args.fakerateAxes
-    #             pseudodataGroups.set_histselectors(
-    #                 pseudodataGroups.getNames(), inputBaseName, **histselector_kwargs
-    #             )
-
-    #         cardTool.setPseudodataDatagroups(pseudodataGroups)
-    #     elif args.pseudoDataFitInputFile:
-    #         indata = narf.combineutils.FitInputData(args.pseudoDataFitInputFile)
-    #         debugdata = narf.combineutils.FitDebugData(indata)
-    #         cardTool.setPseudodataFitInput(
-    #             debugdata, args.pseudoDataFitInputChannel, args.pseudoDataFitInputDownUp
-    #         )
-    # if args.pseudoDataFakes:
-    #     cardTool.setPseudodata(args.pseudoDataFakes)
-    #     # pseudodata for fakes, either using data or QCD MC
-    #     if "closure" in args.pseudoDataFakes or "truthMC" in args.pseudoDataFakes:
-    #         filterGroupFakes = ["QCD"]
-    #         pseudodataGroups = Datagroups(
-    #             args.pseudoDataFile if args.pseudoDataFile else inputFile,
-    #             filterGroups=filterGroupFakes,
-    #         )
-    #         pseudodataGroups.fakerate_axes = args.fakerateAxes
-    #         pseudodataGroups.copyGroup("QCD", "QCDTruth")
-    #         pseudodataGroups.set_histselectors(
-    #             pseudodataGroups.getNames(),
-    #             inputBaseName,
-    #             fake_processes=[
-    #                 "QCD",
-    #             ],
-    #             **histselector_kwargs,
-    #         )
-    #     else:
-    #         pseudodataGroups = Datagroups(
-    #             args.pseudoDataFile if args.pseudoDataFile else inputFile,
-    #             excludeGroups=excludeGroup,
-    #             filterGroups=filterGroup,
-    #         )
-    #         pseudodataGroups.fakerate_axes = args.fakerateAxes
-    #     if args.axlim or args.rebin or args.absval:
-    #         pseudodataGroups.set_rebin_action(
-    #             fitvar, args.axlim, args.rebin, args.absval, rename=False
-    #         )
-
-    #     cardTool.setPseudodataDatagroups(pseudodataGroups)
 
     datagroups.lumiScale = inputLumiScale
     datagroups.lumiScaleVarianceLinearly = args.lumiScaleVarianceLinearly
@@ -1084,12 +1011,6 @@ def setup(
         and (filterGroup == None or datagroups.fakeName in filterGroup)
     )
 
-    # TODO: move to a common place if it is  useful
-    def assertSample(name, startsWith=["W", "Z"], excludeMatch=[]):
-        return any(name.startswith(init) for init in startsWith) and all(
-            excl not in name for excl in excludeMatch
-        )
-
     dibosonMatch = ["WW", "WZ", "ZZ"]
     WMatch = [
         "W"
@@ -1100,86 +1021,75 @@ def setup(
 
     wlike_vetoValidation = wlike and datagroups.args_from_metadata("validateVetoSF")
     datagroups.addProcessGroup(
-        "single_v_samples",
-        lambda x: assertSample(
-            x, startsWith=[*WMatch, *ZMatch], excludeMatch=dibosonMatch
-        ),
+        "single_v_samples", startsWith=[*WMatch, *ZMatch], excludeMatch=dibosonMatch
     )
     # TODO consistently treat low mass drell yan as signal across full analysis
     datagroups.addProcessGroup(
         "z_samples",
-        lambda x: assertSample(x, startsWith=ZMatch, excludeMatch=dibosonMatch),
+        startsWith=ZMatch,
+        excludeMatch=dibosonMatch,
     )
     if wmass or wlike_vetoValidation:
         datagroups.addProcessGroup(
             "Zveto_samples",
-            lambda x: assertSample(
-                x, startsWith=[*ZMatch, "DYlowMass"], excludeMatch=dibosonMatch
-            ),
+            startsWith=[*ZMatch, "DYlowMass"],
+            excludeMatch=dibosonMatch,
         )
     if wmass:
         datagroups.addProcessGroup(
             "w_samples",
-            lambda x: assertSample(x, startsWith=WMatch, excludeMatch=dibosonMatch),
+            startsWith=WMatch,
+            excludeMatch=dibosonMatch,
         )
-        datagroups.addProcessGroup(
-            "wtau_samples", lambda x: assertSample(x, startsWith=["Wtaunu"])
-        )
+        datagroups.addProcessGroup("wtau_samples", startsWith=["Wtaunu"])
         if not xnorm:
             datagroups.addProcessGroup(
                 "single_v_nonsig_samples",
-                lambda x: assertSample(x, startsWith=ZMatch, excludeMatch=dibosonMatch),
+                startsWith=ZMatch,
+                excludeMatch=dibosonMatch,
             )
     datagroups.addProcessGroup(
         "single_vmu_samples",
-        lambda x: assertSample(
-            x, startsWith=[*WMatch, *ZMatch], excludeMatch=[*dibosonMatch, "tau"]
-        ),
+        startsWith=[*WMatch, *ZMatch],
+        excludeMatch=[*dibosonMatch, "tau"],
     )
     datagroups.addProcessGroup(
-        "signal_samples",
-        lambda x: assertSample(
-            x, startsWith=signalMatch, excludeMatch=[*dibosonMatch, "tau"]
-        ),
+        "signal_samples", startsWith=signalMatch, excludeMatch=[*dibosonMatch, "tau"]
     )
     datagroups.addProcessGroup(
         "signal_samples_inctau",
-        lambda x: assertSample(x, startsWith=signalMatch, excludeMatch=[*dibosonMatch]),
+        startsWith=signalMatch,
+        excludeMatch=[*dibosonMatch],
     )
     datagroups.addProcessGroup(
         "nonsignal_samples_inctau",
-        lambda x: assertSample(
-            x, startsWith=nonSignalMatch, excludeMatch=[*dibosonMatch]
-        ),
+        startsWith=nonSignalMatch,
+        excludeMatch=[*dibosonMatch],
     )
     datagroups.addProcessGroup(
         "MCnoQCD",
-        lambda x: x not in ["QCD", "Data", "Fake"],
+        excludeMatch=["QCD", "Data", "Fake"],
     )
     # FIXME/FOLLOWUP: the following groups may actually not exclude the OOA when it is not defined as an independent process with specific name
     datagroups.addProcessGroup(
         "signal_samples_noOutAcc",
-        lambda x: assertSample(
-            x, startsWith=signalMatch, excludeMatch=[*dibosonMatch, "tau", "OOA"]
-        ),
+        startsWith=signalMatch,
+        excludeMatch=[*dibosonMatch, "tau", "OOA"],
     )
     datagroups.addProcessGroup(
         "nonsignal_samples_noOutAcc",
-        lambda x: assertSample(
-            x, startsWith=nonSignalMatch, excludeMatch=[*dibosonMatch, "tau", "OOA"]
-        ),
+        startsWith=nonSignalMatch,
+        excludeMatch=[*dibosonMatch, "tau", "OOA"],
     )
     datagroups.addProcessGroup(
         "signal_samples_inctau_noOutAcc",
-        lambda x: assertSample(
-            x, startsWith=signalMatch, excludeMatch=[*dibosonMatch, "OOA"]
-        ),
+        startsWith=signalMatch,
+        excludeMatch=[*dibosonMatch, "OOA"],
     )
     datagroups.addProcessGroup(
         "nonsignal_samples_inctau_noOutAcc",
-        lambda x: assertSample(
-            x, startsWith=nonSignalMatch, excludeMatch=[*dibosonMatch, "OOA"]
-        ),
+        startsWith=nonSignalMatch,
+        excludeMatch=[*dibosonMatch, "OOA"],
     )
 
     if not (isTheoryAgnostic or isUnfolding):
@@ -1200,9 +1110,74 @@ def setup(
 
     datagroups.writer = writer
 
-    binByBinStatScale = args.binByBinStatScaleForMW if wmass else 1.0
+    for pseudodata in args.pseudoDataFakes:
+        if pseudodata in ["closure", "truthMC"]:
+            pseudodataGroups = Datagroups(
+                args.pseudoDataFile if args.pseudoDataFile else inputFile,
+                filterGroups=["QCD"],
+            )
+            pseudodataGroups.fakerate_axes = args.fakerateAxes
+            pseudodataGroups.copyGroup("QCD", "QCDTruth")
+            if pseudodata == "truthMC":
+                pseudodataGroups.deleteGroup("QCD")
+            pseudodataGroups.set_histselectors(
+                pseudodataGroups.getNames(),
+                inputBaseName,
+                fake_processes=[
+                    "QCD",
+                ],
+                **histselector_kwargs,
+            )
+        else:
+            pseudodataGroups = Datagroups(
+                args.pseudoDataFile if args.pseudoDataFile else inputFile,
+                excludeGroups=excludeGroup,
+                filterGroups=filterGroup,
+            )
+            pseudodataGroups.fakerate_axes = args.fakerateAxes
+
+        datagroups.addPseudodataHistogramFakes(pseudodata, pseudodataGroups)
+    if args.pseudoData:
+        if args.pseudoDataFitInputFile:
+            indata = combinetf2.debugdata.FitInputData(args.pseudoDataFitInputFile)
+            debugdata = combinetf2.debugdata.FitDebugData(indata)
+            datagroups.addPseudodataHistogramsFitInput(
+                debugdata,
+                args.pseudoData,
+                args.pseudoDataFitInputChannel,
+                args.pseudoDataFitInputDownUp,
+            )
+        else:
+            if args.pseudoDataFile:
+                # FIXME: should make sure to apply the same customizations as for the nominal datagroups so far
+                pseudodataGroups = Datagroups(
+                    args.pseudoDataFile,
+                    excludeGroups=excludeGroup,
+                    filterGroups=filterGroup,
+                )
+
+                if wmass and not xnorm:
+                    pseudodataGroups.fakerate_axes = args.fakerateAxes
+                    pseudodataGroups.set_histselectors(
+                        pseudodataGroups.getNames(),
+                        inputBaseName,
+                        **histselector_kwargs,
+                    )
+            else:
+                pseudodataGroups = datagroups
+
+            datagroups.addPseudodataHistograms(
+                pseudodataGroups,
+                args.pseudoData,
+                args.pseudoDataAxes,
+                args.pseudoDataIdxs,
+                args.pseudoDataProcsRegexp,
+            )
+
     datagroups.addNominalHistograms(
-        real_data=args.realData, bin_by_bin_stat_scale=binByBinStatScale
+        real_data=args.realData,
+        bin_by_bin_stat_scale=args.binByBinStatScaleForMW if wmass else 1.0,
+        fitresult_data=fitresult_data,
     )
 
     if args.doStatOnly and isUnfolding and not isPoiAsNoi:
@@ -1344,7 +1319,9 @@ def setup(
             label=label,
         )
 
-    if (args.fitWidth and not wmass) or (not args.doStatOnly and not args.noTheoryUnc):
+    if (args.fitWidth and not wmass) or (
+        not xnorm and not args.doStatOnly and not args.noTheoryUnc
+    ):
         # Experimental range
         # widthVars = (42, ['widthW2p043GeV', 'widthW2p127GeV']) if wmass else (2.3, ['widthZ2p4929GeV', 'widthZ2p4975GeV'])
         # Variation from EW fit (mostly driven by alphas unc.)
@@ -2285,6 +2262,23 @@ if __name__ == "__main__":
         allow_negative_expectation=args.allowNegativeExpectation,
     )
 
+    if args.fitresult:
+        # set data from external fitresult file
+        if len(args.inputFile) > 1:
+            logger.warning(
+                "Theoryfit for more than one channels is currently experimental"
+            )
+        fitresult, meta = combinetf2.io_tools.get_fitresult(args.fitresult, meta=True)
+        fitresult_data_dict, fitresult_data_cov = (
+            combinetf2.io_tools.get_fitresult_data(fitresult)
+        )
+        writer.add_data_covariance(
+            fitresult_data_cov,
+            add_bin_by_bin_stat_to_data_cov=not (
+                args.noMCStat or args.explicitSignalMCstat
+            ),
+        )
+
     # loop over all files
     outnames = []
     for i, ifile in enumerate(args.inputFile):
@@ -2299,6 +2293,8 @@ if __name__ == "__main__":
             args.lumiScale[0] if len(args.lumiScale) == 1 else args.lumiScale[i]
         )
 
+        channel = f"ch{i}"
+
         datagroups = setup(
             writer,
             args,
@@ -2307,7 +2303,10 @@ if __name__ == "__main__":
             iLumiScale,
             fitvar,
             genvar,
+            channel=channel,
+            fitresult_data=fitresult_data_dict[channel] if args.fitresult else None,
         )
+
         outnames.append(
             (
                 outputFolderName(
@@ -2316,12 +2315,6 @@ if __name__ == "__main__":
                 analysis_label(datagroups),
             )
         )
-
-    # TODO: set data from fitresult
-    # if args.fitresult:
-    #     writer.set_fitresult(
-    #         args.fitresult, mc_stat=not (args.noMCStat or args.explicitSignalMCstat)
-    #     )
 
     if len(outnames) == 1:
         outfolder, outfile = outnames[0]

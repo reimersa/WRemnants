@@ -10,6 +10,10 @@ from wremnants import syst_tools, theory_tools
 logger = logging.child_logger(__name__)
 
 
+def match_str_axis_entries(str_axis, match_re):
+    return [x for x in str_axis if any(re.match(r, x) for r in match_re)]
+
+
 class TheoryHelper(object):
     valid_np_models = [
         "Lambda",
@@ -145,7 +149,7 @@ class TheoryHelper(object):
                 "s",
             ]
 
-            self.tnp_nuisances = self.datagroups.match_str_axis_entries(
+            self.tnp_nuisances = match_str_axis_entries(
                 self.corr_hist.axes[self.syst_ax], self.tnp_nuisance_names
             )
 
@@ -600,7 +604,7 @@ class TheoryHelper(object):
         theory_hist = self.datagroups.getHistsForProcAndSyst(
             self.samples[0],  # theory_hist_name #FIXME
         )
-        resumscale_nuisances = self.datagroups.match_str_axis_entries(
+        resumscale_nuisances = match_str_axis_entries(
             theory_hist.axes[self.syst_ax],
             [
                 "^nuB.*",

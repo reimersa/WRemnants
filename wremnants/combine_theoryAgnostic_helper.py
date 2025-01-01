@@ -13,7 +13,7 @@ class TheoryAgnosticHelper(object):
         self.datagroups = datagroups
         toCheck = ["signal_samples", "signal_samples_noOutAcc"]
         for group in toCheck:
-            if group not in self.procGroups:
+            if group not in self.datagroups.procGroups:
                 raise ValueError(
                     f"Must define '{group}' procGroup in datagroups for theory agnostic fit"
                 )

@@ -1,14 +1,14 @@
 import matplotlib.pyplot as plt
 import mplhep as hep
 import numpy as np
-
-from utilities import logging, parsing
-from utilities.io_tools import input_tools, output_tools
-from utilities.io_tools.combinetf_input import (
+from combinetf2.io_tools import (
     get_fitresult,
     load_covariance_pois,
     select_covariance_pois,
 )
+
+from utilities import logging, parsing
+from utilities.io_tools import input_tools, output_tools
 from wremnants import plot_tools
 
 hep.style.use(hep.style.ROOT)

@@ -13,7 +13,7 @@ from matplotlib.lines import Line2D
 from narf import ioutils
 from utilities import boostHistHelpers as hh
 from utilities import common, logging, parsing
-from utilities.io_tools import combinetf_input, input_tools, output_tools
+from utilities.io_tools import combinetf2_input, input_tools, output_tools
 from utilities.styles import styles
 from wremnants import plot_tools
 
@@ -210,7 +210,7 @@ diff = not args.noLowerPanel and args.logTransform
 data = not args.noData
 
 # load .hdf5 file first, must exist in combinetf and combinetf2
-fitresult_h5py = combinetf_input.get_fitresult(args.infile)
+fitresult_h5py = combinetf2_input.get_fitresult(args.infile)
 
 if "results" in fitresult_h5py.keys():
     fitresult = ioutils.pickle_load_h5py(fitresult_h5py["results"])
