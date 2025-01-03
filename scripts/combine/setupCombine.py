@@ -1469,21 +1469,59 @@ def setup(
         return datagroups
 
     # Below: experimental uncertainties
-    datagroups.addSystematic(
-        name="luminosity",
-        processes=["MCnoQCD"],
-        groups=[f"luminosity", "experiment", "expNoCalib"],
-        passToFakes=passSystToFakes,
-        mirror=True,
-        preOp=hh.scaleHist,
-        preOpArgs={
-            "scale": (
-                datagroups.lumi_uncertainty
-                if args.lumiUncertainty is None
-                else args.lumiUncertainty
+
+    if wmass:
+        # mirror hist in linear scale, this was done in the old definition of luminosity uncertainty from a histogram
+        def scale_hist_up_down(h, scale):
+            hUp = hh.scaleHist(h, scale)
+            hDown = hh.scaleHist(h, 1 / scale)
+
+            hVar = hist.Hist(
+                *[a for a in h.axes],
+                common.down_up_axis,
+                storage=hist.storage.Weight(),
             )
-        },
-    )
+            hVar.values(flow=True)[...] = np.stack(
+                [hUp.values(flow=True), hDown.values(flow=True)], axis=-1
+            )
+            hVar.variances(flow=True)[...] = np.stack(
+                [hUp.variances(flow=True), hDown.variances(flow=True)], axis=-1
+            )
+            return hVar
+
+        datagroups.addSystematic(
+            name="luminosity",
+            processes=["MCnoQCD"],
+            groups=[f"luminosity", "experiment", "expNoCalib"],
+            passToFakes=passSystToFakes,
+            outNames=["lumiDown", "lumiUp"],
+            systAxes=["downUpVar"],
+            labelsByAxis=["downUpVar"],
+            preOp=scale_hist_up_down,
+            preOpArgs={
+                "scale": (
+                    datagroups.lumi_uncertainty
+                    if args.lumiUncertainty is None
+                    else args.lumiUncertainty
+                )
+            },
+        )
+    else:
+        datagroups.addSystematic(
+            name="luminosity",
+            processes=["MCnoQCD"],
+            groups=[f"luminosity", "experiment", "expNoCalib"],
+            passToFakes=passSystToFakes,
+            mirror=True,
+            preOp=hh.scaleHist,
+            preOpArgs={
+                "scale": (
+                    datagroups.lumi_uncertainty
+                    if args.lumiUncertainty is None
+                    else args.lumiUncertainty
+                )
+            },
+        )
 
     if not lowPU:  # lowPU does not include PhotonInduced as a process. skip it:
         datagroups.addSystematic(
