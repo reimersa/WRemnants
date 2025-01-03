@@ -1161,13 +1161,14 @@ class Datagroups(object):
 
             # nominal histograms of prediction
             norm_proc_hist = self.groups[proc].hists[self.nominalName]
-            if bin_by_bin_stat_scale != 1:
-                norm_proc_hist.variances()[...] = (
-                    norm_proc_hist.variances() * bin_by_bin_stat_scale**2
-                )
 
             if norm_proc_hist.axes.name != self.fit_axes:
                 norm_proc_hist = norm_proc_hist.project(*self.fit_axes)
+
+            if bin_by_bin_stat_scale != 1:
+                norm_proc_hist.variances(flow=True)[...] = (
+                    norm_proc_hist.variances(flow=True) * bin_by_bin_stat_scale**2
+                )
 
             self.writer.add_process(
                 norm_proc_hist,
