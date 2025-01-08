@@ -1182,12 +1182,10 @@ def setup(
 
     if args.doStatOnly and isUnfolding and not isPoiAsNoi:
         # At least one nuisance parameter is needed to run combine impacts (e.g. needed for unfolding postprocessing chain)
-        datagroups.addSystematic(
+        datagroups.addNormSystematic(
             name="dummy",
             processes=["MCnoQCD"],
-            preOp=hh.scaleHist,
-            preOpArgs={"scale": 1.0001},
-            mirror=True,
+            scale=1.0001,
         )
 
     decorwidth = args.decorMassWidth or args.fitWidth
@@ -1507,35 +1505,29 @@ def setup(
             },
         )
     else:
-        datagroups.addSystematic(
+        datagroups.addNormSystematic(
             name="lumi",
             processes=["MCnoQCD"],
             groups=[f"luminosity", "experiment", "expNoCalib"],
             passToFakes=passSystToFakes,
-            mirror=True,
-            preOp=hh.scaleHist,
-            preOpArgs={
-                "scale": (
-                    datagroups.lumi_uncertainty
-                    if args.lumiUncertainty is None
-                    else args.lumiUncertainty
-                )
-            },
+            norm=(
+                datagroups.lumi_uncertainty
+                if args.lumiUncertainty is None
+                else args.lumiUncertainty
+            ),
         )
 
     if not lowPU:  # lowPU does not include PhotonInduced as a process. skip it:
-        datagroups.addSystematic(
+        datagroups.addNormSystematic(
             name="CMS_PhotonInduced",
             processes=["PhotonInduced"],
             groups=[f"CMS_background", "experiment", "expNoCalib"],
             passToFakes=args.passNormUncToFakes,
-            mirror=True,
-            preOp=hh.scaleHist,
-            preOpArgs={"scale": 2.0},
+            norm=2.0,
         )
     if wmass:
         if args.logNormalWmunu != 0:
-            datagroups.addSystematic(
+            datagroups.addNormSystematic(
                 name="CMS_Wmunu",
                 processes=["Wmunu"],
                 groups=[
@@ -1543,14 +1535,12 @@ def setup(
                     *(["experiment", "expNoCalib"] if args.logNormalWmunu > 0 else []),
                 ],
                 passToFakes=passSystToFakes,
-                mirror=True,
                 noi=args.logNormalWmunu < 0,
                 noConstraint=args.logNormalWmunu < 0,
-                preOp=hh.scaleHist,
-                preOpArgs={"scale": abs(args.logNormalWmunu)},
+                norm=abs(args.logNormalWmunu),
             )
         if args.logNormalWtaunu != 0:
-            datagroups.addSystematic(
+            datagroups.addNormSystematic(
                 name="CMS_Wtaunu",
                 processes=["Wtaunu"],
                 groups=[
@@ -1558,50 +1548,40 @@ def setup(
                     *(["experiment", "expNoCalib"] if args.logNormalWmunu > 0 else []),
                 ],
                 passToFakes=passSystToFakes,
-                mirror=True,
                 noi=args.logNormalWtaunu < 0,
                 noConstraint=args.logNormalWtaunu < 0,
-                preOp=hh.scaleHist,
-                preOpArgs={"scale": abs(args.logNormalWtaunu)},
+                norm=abs(args.logNormalWtaunu),
             )
 
         if args.logNormalFake > 0.0:
-            datagroups.addSystematic(
+            datagroups.addNormSystematic(
                 name=f"CMS_{datagroups.fakeName}",
                 processes=[datagroups.fakeName],
                 groups=["Fake", "experiment", "expNoCalib"],
                 passToFakes=False,
-                mirror=True,
-                preOp=hh.scaleHist,
-                preOpArgs={"scale": args.logNormalFake},
+                norm=args.logNormalFake,
             )
 
-        datagroups.addSystematic(
+        datagroups.addNormSystematic(
             name="CMS_Top",
             processes=["Top"],
             groups=[f"CMS_background", "experiment", "expNoCalib"],
             passToFakes=args.passNormUncToFakes,
-            mirror=True,
-            preOp=hh.scaleHist,
-            preOpArgs={"scale": 1.06},
+            norm=1.06,
         )
-        datagroups.addSystematic(
+        datagroups.addNormSystematic(
             name="CMS_VV",
             processes=["Diboson"],
             groups=[f"CMS_background", "experiment", "expNoCalib"],
             passToFakes=args.passNormUncToFakes,
-            mirror=True,
-            preOp=hh.scaleHist,
-            preOpArgs={"scale": 1.16},
+            norm=1.16,
         )
     else:
-        datagroups.addSystematic(
+        datagroups.addNormSystematic(
             name="CMS_background",
             processes=["Other"],
             groups=[f"CMS_background", "experiment", "expNoCalib"],
-            mirror=True,
-            preOp=hh.scaleHist,
-            preOpArgs={"scale": 1.15},
+            norm=1.15,
         )
 
     if (

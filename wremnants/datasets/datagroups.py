@@ -1203,6 +1203,11 @@ class Datagroups(object):
             }
         )
 
+    def addNormSystematic(self, norm, **kwargs):
+        self.addSystematic(
+            preOp=hh.scaleHist, preOpArgs={"scale": norm}, mirror=True, **kwargs
+        )
+
     def addSystematic(
         self,
         histname=None,
