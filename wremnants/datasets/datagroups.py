@@ -938,6 +938,12 @@ class Datagroups(object):
         else:
             expand_vars_rename = axesNamesToRead
 
+        # turn off flow for axes that are fit and used to define new groups, otherwise groups with empty histogram for the flow bins would be added
+        for a in expand_vars:
+            idx = axesNamesToRead.index(a)
+            ax = axesToRead[idx]
+            axesToRead[idx] = hh.disableAxisFlow(ax)
+
         self.gen_axes[new_name] = axesToRead
         logger.debug(f"New gen axes are: {self.gen_axes}")
 

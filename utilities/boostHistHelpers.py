@@ -544,11 +544,28 @@ def mirrorAxes(h, axes, flow=True):
     return h
 
 
+def disableAxisFlow(ax):
+    if isinstance(ax, hist.axis.Integer):
+        args = [ax.edges[0], ax.edges[-1]]
+    elif isinstance(ax, hist.axis.Regular):
+        args = [ax.size, ax.edges[0], ax.edges[-1]]
+    else:
+        args = [ax.edges]
+
+    return type(ax)(
+        *args,
+        name=ax.name,
+        overflow=False,
+        underflow=False,
+        circular=ax.traits.circular,
+    )
+
+
 def disableFlow(h, axis_name):
     # disable the overflow and underflow bins of a single axes, while keeping the flow bins of other axes
     ax = h.axes[axis_name]
     ax_idx = [a.name for a in h.axes].index(axis_name)
-    new_ax = type(ax)(ax.edges, name=ax.name, overflow=False, underflow=False)
+    new_ax = disableAxisFlow(ax)
     axes = list(h.axes)
     axes[ax_idx] = new_ax
     hnew = hist.Hist(*axes, name=h.name, storage=h.storage_type())

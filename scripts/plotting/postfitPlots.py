@@ -923,10 +923,11 @@ if len(args.project) == 0:
         hist_data_stat = None
         if args.unfoldedXsec:
             hist_data = fitresult[f"hist_{fittype}_inclusive"][channel].get()
-            if f"hist_global_impacts_grouped_{fittype}_inclusive" in fitresult.keys():
-                hist_data_stat = fitresult[
-                    f"hist_global_impacts_grouped_{fittype}_inclusive"
-                ][channel].get()[{"impacts": "stat"}]
+            name_impacts = f"hist_global_impacts_grouped_{fittype}_inclusive"
+            if name_impacts in fitresult.keys():
+                hist_data_stat = fitresult[name_impacts][channel].get()[
+                    {"impacts": "stat"}
+                ]
             hist_inclusive = fitresult[f"hist_prefit_inclusive"][channel].get()
             hist_stack = []
         else:
@@ -1021,10 +1022,9 @@ else:
         hist_data_stat = None
         if args.unfoldedXsec:
             hist_data = result[f"hist_{fittype}_inclusive"].get()
-            if f"hist_global_impacts_grouped_{fittype}_inclusive" in result.keys():
-                hist_data_stat = result[
-                    f"hist_global_impacts_grouped_{fittype}_inclusive"
-                ].get()[{"impacts": "stat"}]
+            name_impacts = f"hist_global_impacts_grouped_{fittype}_inclusive"
+            if name_impacts in result.keys():
+                hist_data_stat = result[name_impacts].get()[{"impacts": "stat"}]
             hist_inclusive = result[f"hist_prefit_inclusive"].get()
             hist_stack = []
         else:
