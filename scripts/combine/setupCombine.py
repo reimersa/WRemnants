@@ -1492,7 +1492,7 @@ def setup(
             processes=["MCnoQCD"],
             groups=[f"luminosity", "experiment", "expNoCalib"],
             passToFakes=passSystToFakes,
-            outNames=["luminosityDown", "luminosityUp"],
+            outNames=["lumiDown", "lumiUp"],
             systAxes=["downUpVar"],
             labelsByAxis=["downUpVar"],
             preOp=scale_hist_up_down,
