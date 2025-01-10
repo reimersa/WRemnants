@@ -244,7 +244,7 @@ jobs:
         run: >- 
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh combinetf2/scripts/fit.py 
           $WREMNANTS_OUTDIR/WMass_eta_pt_charge_unfolding/WMass.hdf5 -o $WREMNANTS_OUTDIR/WMass_eta_pt_charge_unfolding/fitresults.hdf5 
-          --binByBinStat --doImpacts
+          --binByBinStat --doImpacts --globalImpacts
 
       - name: wmass unfolding plot pulls 
         run: >-
@@ -398,7 +398,7 @@ jobs:
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh combinetf2/scripts/fit.py 
           $WREMNANTS_OUTDIR/ZMassWLike_eta_pt_charge_unfolding/ZMassWLike.hdf5 -o $WREMNANTS_OUTDIR/ZMassWLike_eta_pt_charge_unfolding/fitresults.hdf5
-          --binByBinStat --doImpacts
+          --binByBinStat --doImpacts --globalImpacts
 
       - name: wlike combine xsec setup
         run: >-

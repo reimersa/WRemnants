@@ -514,7 +514,8 @@ jobs:
       - name: lowpu combine unfolding fit 
         run: >- 
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh combinetf2/scripts/fit.py 
-          $COMBINED_DIR/Combination_WMass_lowPUZMass_lowPU_ptll/Combination.hdf5 --binByBinStat -o $COMBINED_DIR/Combination_WMass_lowPUZMass_lowPU_ptll/fitresults.hdf5
+          $COMBINED_DIR/Combination_WMass_lowPUZMass_lowPU_ptll/Combination.hdf5 -o $COMBINED_DIR/Combination_WMass_lowPUZMass_lowPU_ptll/fitresults.hdf5
+          --binByBinStat --doImpacts --globalImpacts
 
       - name: lowpu combine xsec setup
         run: >- 
