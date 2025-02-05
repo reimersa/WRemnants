@@ -576,7 +576,7 @@ class Datagroups(object):
                         and "mc" in self.lumiScaleVarianceLinearly
                     )
                 ):
-                    logger.warning(
+                    logger.debug(
                         f"Scale {procName} hist by {self.lumiScale} as a multiplicative luminosity factor, with variance scaled linearly"
                     )
                     h = hh.scaleHist(
