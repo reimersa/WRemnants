@@ -991,6 +991,8 @@ def setup(
 
     logger.debug(f"Making datacards with these processes: {datagroups.getProcesses()}")
 
+    era = datagroups.args_from_metadata("era")
+
     datagroups.nominalName = inputBaseName
     label = "W" if wmass else "Z"
     datagroups.setCustomSystGroupMapping(
@@ -2043,8 +2045,12 @@ def setup(
         processes=["MCnoQCD"],
         groups=["muonPrefire", "prefire", "experiment", "expNoCalib"],
         baseName="CMS_prefire_stat_m_",
-        systAxes=["etaPhiRegion", "downUpVar"],
-        labelsByAxis=["etaPhiReg", "downUpVar"],
+        systAxes=(
+            ["downUpVar", "etaPhiRegion"] if era == "2016PostVFP" else ["downUpVar"]
+        ),
+        labelsByAxis=(
+            ["downUpVar", "etaPhiReg"] if era == "2016PostVFP" else ["downUpVar"]
+        ),
         passToFakes=passSystToFakes,
     )
     datagroups.addSystematic(
