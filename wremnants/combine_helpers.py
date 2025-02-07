@@ -149,7 +149,7 @@ def add_explicit_BinByBinStat(
     """
     add explicit bin by bin stat uncertainties
     Parameters:
-    source (tuple of str): take variations from histogram with name given by f"{source[0]}_{source[1]}" (E.g. used to correlate between masked channels).
+    source (tuple of str): take variations from histogram with name given by f"{source[0]}_{source[1]}" (E.g. to correlate between detector level and gen level fits).
         If None, use variations from nominal histogram
     """
 
@@ -163,7 +163,7 @@ def add_explicit_BinByBinStat(
         mirror=True,
         labelsByAxis=[f"_{p}" if p != recovar[0] else p for p in recovar],
     )
-    datagroups.setProcsNoStatUnc(datagroups.procGroups[samples])
+
     if source is not None:
         # signal region selection
         if wmass:
@@ -179,7 +179,7 @@ def add_explicit_BinByBinStat(
         datagroups.addSystematic(
             **info,
             nominalName=source[0],
-            name=source[1],
+            histname=source[1],
             systAxes=recovar,
             actionRequiresNomi=True,
             action=lambda hv, hn: hh.addHists(

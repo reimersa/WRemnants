@@ -1184,6 +1184,7 @@ def setup(
 
     datagroups.addNominalHistograms(
         real_data=args.realData,
+        exclude_bin_by_bin_stat="signal_samples" if args.explicitSignalMCstat else None,
         bin_by_bin_stat_scale=args.binByBinStatScaleForMW if wmass else 1.0,
         fitresult_data=fitresult_data,
     )
@@ -1303,18 +1304,15 @@ def setup(
         muRmuFPolVar_helper.add_theoryAgnostic_uncertainty()
 
     if args.explicitSignalMCstat:
-        if not xnorm:
-            recovar = fitvar
-        else:
-            # need to find the reco variables that correspond to the masked channel
-            idx = args.inputFile.index(inputFile)
-            recovar = args.fitvar[idx].split("-")
-
         if xnorm and not args.fitresult:
             # use variations from reco histogram and apply them to xnorm
             source = ("nominal", "yieldsUnfolding")
+            # need to find the reco variables that correspond to the reco fit, reco fit must be done with variables in same order as gen bins
+            gen2reco = {"qGen": "charge", "ptGen": "pt", "absEtaGen": "eta"}
+            recovar = [gen2reco[v] for v in fitvar]
         else:
-            None
+            recovar = fitvar
+            source = None
 
         combine_helpers.add_explicit_BinByBinStat(
             datagroups,
@@ -2046,10 +2044,10 @@ def setup(
         groups=["muonPrefire", "prefire", "experiment", "expNoCalib"],
         baseName="CMS_prefire_stat_m_",
         systAxes=(
-            ["downUpVar", "etaPhiRegion"] if era == "2016PostVFP" else ["downUpVar"]
+            ["etaPhiRegion", "downUpVar"] if era == "2016PostVFP" else ["downUpVar"]
         ),
         labelsByAxis=(
-            ["downUpVar", "etaPhiReg"] if era == "2016PostVFP" else ["downUpVar"]
+            ["etaPhiReg", "downUpVar"] if era == "2016PostVFP" else ["downUpVar"]
         ),
         passToFakes=passSystToFakes,
     )

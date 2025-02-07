@@ -31,6 +31,15 @@ class Datagroups(object):
         "mz_lowPU.py": "z_lowpu",
     }
 
+    lumi_uncertainties = {
+        "2016RreVFP": 1.012,
+        "2016PostVFP": 1.012,
+        "2017": 1.023,
+        "2017G": 1.019,
+        "2017H": 1.017,
+        "2018": 1.025,
+    }
+
     def __init__(self, infile, mode=None, **kwargs):
         if infile.endswith(".pkl.lz4"):
             with lz4.frame.open(infile) as f:
@@ -53,12 +62,10 @@ class Datagroups(object):
             self.mode = mode
         logger.info(f"Set mode to {self.mode}")
 
-        try:
-            args = self.getMetaInfo()["args"]
-            self.flavor = args.get("flavor", None)
-        except ValueError as e:
-            logger.warning(e)
-            self.flavor = None
+        args = self.getMetaInfo()["args"]
+        self.flavor = args.get("flavor", None)
+        self.era = args.get("era", None)
+        self.lumi_uncertainty = Datagroups.lumi_uncertainties.get(self.era, None)
 
         self.groups = {}
         self.procGroups = {}  # groups of groups for convenent definition of systematics
@@ -79,16 +86,10 @@ class Datagroups(object):
             from wremnants.datasets.datagroupsLowPU import (
                 make_datagroups_lowPU as make_datagroups,
             )
-
-            self.era = "2017H"
-            self.lumi_uncertainty = 1.017
         else:
             from wremnants.datasets.datagroups2016 import (
                 make_datagroups_2016 as make_datagroups,
             )
-
-            self.era = "2016postVFP"
-            self.lumi_uncertainty = 1.012
 
         make_datagroups(self, **kwargs)
 
@@ -382,16 +383,12 @@ class Datagroups(object):
         return self.lumi * 1000 * proc.xsec / proc.weight_sum
 
     def getMetaInfo(self):
-        if self.results:
-            if "meta_info" not in self.results and "meta_data" not in self.results:
-                raise ValueError("Did not find meta data in results file")
-            return (
-                self.results["meta_info"]
-                if "meta_info" in self.results
-                else self.results["meta_data"]
-            )
-        raise NotImplementedError(
-            "Currently can't access meta data as dict for ROOT file"
+        if "meta_info" not in self.results and "meta_data" not in self.results:
+            raise ValueError("Did not find meta data in results file")
+        return (
+            self.results["meta_info"]
+            if "meta_info" in self.results
+            else self.results["meta_data"]
         )
 
     def args_from_metadata(self, arg):
@@ -1147,6 +1144,7 @@ class Datagroups(object):
         self,
         forceNonzero=False,
         real_data=False,
+        exclude_bin_by_bin_stat=None,
         bin_by_bin_stat_scale=1.0,
         fitresult_data=None,
     ):
@@ -1171,7 +1169,12 @@ class Datagroups(object):
             if norm_proc_hist.axes.name != self.fit_axes:
                 norm_proc_hist = norm_proc_hist.project(*self.fit_axes)
 
-            if bin_by_bin_stat_scale != 1:
+            if (
+                exclude_bin_by_bin_stat is not None
+                and proc in self.procGroups[exclude_bin_by_bin_stat]
+            ):
+                norm_proc_hist.variances(flow=True)[...] *= 0
+            elif bin_by_bin_stat_scale != 1:
                 norm_proc_hist.variances(flow=True)[...] = (
                     norm_proc_hist.variances(flow=True) * bin_by_bin_stat_scale**2
                 )
@@ -1184,6 +1187,12 @@ class Datagroups(object):
             )
 
         if fitresult_data is not None:
+            fitresult_axes = [n for n in fitresult_data.axes.name]
+            if fitresult_axes != self.fit_axes:
+                raise RuntimeError(
+                    f"The axes of the fitresult {fitresult_axes} are different from the fit axes {self.fit_axes} but can't be re-ordered as they are according to their covariance matrix. Please choose the fit axes accordingly."
+                )
+
             data_obs_hist = fitresult_data
         elif real_data:
             data_obs_hist = self.groups[self.dataName].hists[self.nominalName]
@@ -1218,6 +1227,7 @@ class Datagroups(object):
         self,
         histname=None,
         name=None,
+        nominalName=None,
         processes=None,
         noi=False,
         noConstraint=False,
@@ -1249,12 +1259,14 @@ class Datagroups(object):
             # precompile splitGroup expressions for better performance
             splitGroup = {g: re.compile(v) for g, v in splitGroup.items()}
 
+        nominalName = self.nominalName if nominalName is None else nominalName
+
         if preOp and preOpMap:
             raise ValueError("Only one of preOp and preOpMap args are allowed")
         if histname is None:
-            histname = self.nominalName
+            histname = nominalName
         if name is None:
-            if histname == self.nominalName:
+            if histname == nominalName:
                 raise RuntimeError(
                     "The systematic is based on the nominal histogram, a name must be specified."
                 )
@@ -1305,8 +1317,9 @@ class Datagroups(object):
                 ]
             )
         ]
+
         self.loadHistsForDatagroups(
-            self.nominalName,
+            nominalName,
             histname,
             label="syst",
             procsToRead=procs_to_add,

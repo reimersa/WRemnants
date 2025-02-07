@@ -186,6 +186,8 @@ common_groups = [
     "Total",
     "stat",
     "binByBinStat",
+    "binByBinStatZ",
+    "binByBinStatW",
     "luminosity",
     "recoil",
     "CMS_background",
