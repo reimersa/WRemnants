@@ -111,7 +111,7 @@ def make_parser(parser=None):
         "--outfolder",
         type=str,
         default=".",
-        help="Output folder with the root file storing all histograms and datacards for single charge (subfolder WMass or ZMassWLike is created automatically inside)",
+        help="Output folder with all the outputs of this script (subfolder WMass or ZMassWLike is created automatically inside)",
     )
     parser.add_argument("-i", "--inputFile", nargs="+", type=str)
     parser.add_argument(
@@ -1035,6 +1035,8 @@ def setup(
         cardTool.setBinByBinStatScale(args.binByBinStatScaleForMW)
 
     cardTool.setExponentialTransform(args.exponentialTransform)
+
+    era = input_tools.args_from_metadata(cardTool, "era")
 
     logger.debug(f"Making datacards with these processes: {cardTool.getProcesses()}")
     if args.absolutePathInCard:
@@ -2277,8 +2279,12 @@ def setup(
         group="muonPrefire",
         splitGroup={f"prefire": f".*", "experiment": ".*", "expNoCalib": ".*"},
         baseName="CMS_prefire_stat_m_",
-        systAxes=["downUpVar", "etaPhiRegion"],
-        labelsByAxis=["downUpVar", "etaPhiReg"],
+        systAxes=(
+            ["downUpVar", "etaPhiRegion"] if era == "2016PostVFP" else ["downUpVar"]
+        ),
+        labelsByAxis=(
+            ["downUpVar", "etaPhiReg"] if era == "2016PostVFP" else ["downUpVar"]
+        ),
         passToFakes=passSystToFakes,
     )
     cardTool.addSystematic(
