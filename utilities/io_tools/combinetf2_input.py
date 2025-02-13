@@ -4,7 +4,7 @@ import re
 import combinetf2.io_tools
 import pandas as pd
 
-from utilities import logging
+from wums import logging
 
 logger = logging.child_logger(__name__)
 

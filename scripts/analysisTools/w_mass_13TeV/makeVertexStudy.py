@@ -21,10 +21,10 @@ import hist
 
 import narf
 from narf import ioutils
+from utilities.io_tools import input_tools
 
 # from wremnants import plot_tools,theory_tools,syst_tools
-from utilities import logging
-from utilities.io_tools import input_tools
+from wums import logging
 
 args = sys.argv[:]
 sys.argv = ["-b"]

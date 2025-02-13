@@ -8,8 +8,7 @@ import hist
 import numpy as np
 
 from combinetf2 import tensorwriter
-from utilities import boostHistHelpers as hh
-from utilities import common, logging, parsing
+from utilities import common, parsing
 from wremnants import (
     combine_helpers,
     combine_theory_helper,
@@ -22,6 +21,8 @@ from wremnants.datasets.datagroups import Datagroups
 from wremnants.histselections import FakeSelectorSimpleABCD
 from wremnants.regression import Regressor
 from wremnants.syst_tools import massWeightNames
+from wums import boostHistHelpers as hh
+from wums import logging
 
 
 def make_subparsers(parser):
@@ -874,8 +875,14 @@ def setup(
             # add gen charge as additional axis
             datagroups.groups[base_group].memberOp = [
                 (
-                    lambda h, m=member: hh.addGenChargeAxis(
-                        h, idx=0 if "minus" in m.name else 1
+                    lambda h, m=member: hh.addGenericAxis(
+                        h,
+                        hist.axis.Regular(
+                            2, -2.0, 2.0, underflow=False, overflow=False, name="qGen"
+                        ),
+                        idx=0 if "minus" in m.name else 1,
+                        add_trailing=False,
+                        flow=True,
                     )
                 )
                 for member in datagroups.groups[base_group].members

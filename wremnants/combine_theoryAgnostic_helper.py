@@ -1,9 +1,10 @@
 import h5py
 import hist
 
-import narf.ioutils
-from utilities import boostHistHelpers as hh
-from utilities import common, logging
+import wums.ioutils
+from utilities import common
+from wums import boostHistHelpers as hh
+from wums import logging
 
 logger = logging.child_logger(__name__)
 
@@ -194,7 +195,7 @@ class TheoryAgnosticHelper(object):
             f"{common.data_dir}/angularCoefficients/theoryband_variations_corr.hdf5",
             "r",
         ) as ff:
-            scale_hists = narf.ioutils.pickle_load_h5py(ff["theorybands"])
+            scale_hists = wums.ioutils.pickle_load_h5py(ff["theorybands"])
 
         # First do in acceptance bins, then OOA later (for OOA we need to group bins into macro regions)
         nuisanceBaseName = f"norm{self.label}"

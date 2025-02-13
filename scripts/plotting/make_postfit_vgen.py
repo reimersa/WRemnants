@@ -7,10 +7,11 @@ import numpy as np
 import pandas as pd
 
 import narf
-from utilities import boostHistHelpers as hh
-from utilities import logging, parsing
+from utilities import parsing
 from utilities.io_tools import input_tools, output_tools
 from wremnants import plot_tools, syst_tools
+from wums import boostHistHelpers as hh
+from wums import logging
 
 parser = parsing.plot_parser()
 parser.add_argument("--unfolded", type=str, required=False)

@@ -1,10 +1,10 @@
 import hist
 import numpy as np
 
-from utilities import boostHistHelpers as hh
-from utilities import logging
 from utilities.io_tools import input_tools
 from wremnants import histselections, syst_tools
+from wums import boostHistHelpers as hh
+from wums import logging
 
 logger = logging.child_logger(__name__)
 

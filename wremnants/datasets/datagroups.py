@@ -10,13 +10,13 @@ import lz4.frame
 import numpy as np
 import pandas as pd
 
-import narf
-from utilities import boostHistHelpers as hh
-from utilities import logging
+import wums
 from utilities.io_tools import input_tools
 from utilities.styles import styles
 from wremnants import histselections as sel
 from wremnants.datasets.datagroup import Datagroup
+from wums import boostHistHelpers as hh
+from wums import logging
 
 logger = logging.child_logger(__name__)
 
@@ -1045,7 +1045,7 @@ class Datagroups(object):
             raise ValueError(f"Histogram {histname} not found for process {proc.name}")
 
         h = output[histname]
-        if isinstance(h, narf.ioutils.H5PickleProxy):
+        if isinstance(h, wums.ioutils.H5PickleProxy):
             h = h.get()
 
         return h

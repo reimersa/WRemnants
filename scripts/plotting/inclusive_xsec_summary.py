@@ -13,10 +13,11 @@ import numpy as np
 import pandas as pd
 
 from narf import ioutils
-from utilities import logging, parsing
+from utilities import parsing
 from utilities.io_tools import conversion_tools, output_tools, tex_tools
 from utilities.styles.styles import nuisance_groupings
 from wremnants import plot_tools
+from wums import logging
 
 parser = parsing.plot_parser()
 parser.add_argument("infile", type=str, help="Combine fitresult file")

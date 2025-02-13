@@ -1,5 +1,7 @@
-from utilities import boostHistHelpers as hh
-from utilities import logging
+import matplotlib.cm as cm
+
+from wums import boostHistHelpers as hh
+from wums import logging
 
 logger = logging.child_logger(__name__)
 
@@ -487,14 +489,19 @@ def get_labels_colors_procs_sorted(procs):
         "PhotonInduced",
         "Prompt",
         "Rare",
+        "sig",
+        "bkg_2",
+        "bkg",
     ][::-1]
+
+    cmap = cm.get_cmap("tab10")
 
     procs = sorted(
         procs, key=lambda x: procs_sort.index(x) if x in procs_sort else len(procs_sort)
     )
     logger.info(f"Found processes {procs} in fitresult")
     labels = [process_labels.get(p, p) for p in procs]
-    colors = [process_colors.get(p, "red") for p in procs]
+    colors = [process_colors.get(p, cmap(i % cmap.N)) for i, p in enumerate(procs)]
     return labels, colors, procs
 
 

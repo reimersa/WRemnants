@@ -4,8 +4,8 @@ import pandas as pd
 from matplotlib import ticker
 
 from utilities import parsing
-from utilities.io_tools import output_tools
 from wremnants import plot_tools
+from wums import output_tools
 
 parser = parsing.plot_parser()
 parser.add_argument(

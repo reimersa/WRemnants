@@ -227,7 +227,7 @@ jobs:
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/setupCombine.py
           --analysisMode unfolding --poiAsNoi -i $HIST_FILE --lumiScale $LUMI_SCALE -o $WREMNANTS_OUTDIR --postfix unfolding
-          --scaleNormXsecHistYields '0.01' --genAxes qGen-ptGen-absEtaGen
+          --scaleNormXsecHistYields '0.01' --genAxes absEtaGen-ptGen-qGen
 
       - name: wmass combine fit
         run: >- 
@@ -246,19 +246,19 @@ jobs:
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/setupCombine.py
           --analysisMode unfolding --poiAsNoi -i $HIST_FILE --lumiScale $LUMI_SCALE -o $WREMNANTS_OUTDIR --postfix unfolding
           --baseName xnorm --filterProcGroups Wmunu
-          --scaleNormXsecHistYields '0.01' --fitvar qGen-ptGen-absEtaGen --genAxes qGen-ptGen-absEtaGen
+          --scaleNormXsecHistYields '0.01' --fitvar absEtaGen-ptGen-qGen --genAxes absEtaGen-ptGen-qGen
 
       - name: wmass combine unfolded xsec
         run: >- 
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh combinetf2/scripts/fit.py 
-          $WREMNANTS_OUTDIR/WMass_qGen_ptGen_absEtaGen_unfolding/WMass.hdf5 -o $WREMNANTS_OUTDIR/WMass_qGen_ptGen_absEtaGen_unfolding/
+          $WREMNANTS_OUTDIR/WMass_absEtaGen_ptGen_qGen_unfolding/WMass.hdf5 -o $WREMNANTS_OUTDIR/WMass_absEtaGen_ptGen_qGen_unfolding/
           --externalPostfit $WREMNANTS_OUTDIR/WMass_eta_pt_charge_unfolding/fitresults_asimov.hdf5
           --saveHists --computeHistErrors --computeHistCov --computeHistImpacts --noChi2 --project ch0 ptGen --project ch0 absEtaGen 
 
       - name: wmass unfolding plot xsec 
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/plotting/postfitPlots.py 
-          ${WREMNANTS_OUTDIR}/WMass_qGen_ptGen_absEtaGen_unfolding/fitresults_asimov.hdf5 -o $WEB_DIR -f $PLOT_DIR 
+          ${WREMNANTS_OUTDIR}/WMass_absEtaGen_ptGen_qGen_unfolding/fitresults_asimov.hdf5 -o $WEB_DIR -f $PLOT_DIR 
           --rrange 0.0 2.0 --unfoldedXsec --noUncertainty --noChisq --legCols 1 --noSciy --logoPos 0 --yscale 1.3
           --project ch0 ptGen --project ch0 absEtaGen
 
@@ -287,30 +287,30 @@ jobs:
       - name: wmass theoryfit setup
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/setupCombine.py -i $HIST_FILE 
-          --fitresult ${WREMNANTS_OUTDIR}/WMass_qGen_ptGen_absEtaGen_unfolding/fitresults_asimov.hdf5 --fitvar qGen-ptGen-absEtaGen 
+          --fitresult ${WREMNANTS_OUTDIR}/WMass_absEtaGen_ptGen_qGen_unfolding/fitresults_asimov.hdf5 --fitvar absEtaGen-ptGen-qGen
           -o $WREMNANTS_OUTDIR --postfix theoryfit --baseName xnorm --realData
 
       - name: wmass theoryfit fit 
         run: >- 
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh combinetf2/scripts/fit.py 
-          $WREMNANTS_OUTDIR/WMass_qGen_ptGen_absEtaGen_theoryfit/WMass.hdf5 -o $WREMNANTS_OUTDIR/WMass_qGen_ptGen_absEtaGen_theoryfit/
+          $WREMNANTS_OUTDIR/WMass_absEtaGen_ptGen_qGen_theoryfit/WMass.hdf5 -o $WREMNANTS_OUTDIR/WMass_absEtaGen_ptGen_qGen_theoryfit/
           --doImpacts --globalImpacts --saveHists --computeHistErrors --chisqFit --externalCovariance -t 0
 
       - name: wmass theoryfit impacts
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/show_impacts.sh 
-          $WREMNANTS_OUTDIR/WMass_qGen_ptGen_absEtaGen_theoryfit/fitresults.hdf5 $WEB_DIR/$PLOT_DIR impactsW.html
+          $WREMNANTS_OUTDIR/WMass_absEtaGen_ptGen_qGen_theoryfit/fitresults.hdf5 $WEB_DIR/$PLOT_DIR impactsW.html
 
       - name: wmass theoryfit prefit plot
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/plotting/postfitPlots.py
-          $WREMNANTS_OUTDIR/WMass_qGen_ptGen_absEtaGen_theoryfit/fitresults.hdf5 --postfix wmass_theoryfit
+          $WREMNANTS_OUTDIR/WMass_absEtaGen_ptGen_qGen_theoryfit/fitresults.hdf5 --postfix wmass_theoryfit
           -o $WEB_DIR -f $PLOT_DIR --prefit --yscale 1.5
 
       - name: wmass theoryfit postfit plot
         run: >- 
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/plotting/postfitPlots.py
-          $WREMNANTS_OUTDIR/WMass_qGen_ptGen_absEtaGen_theoryfit/fitresults.hdf5 --postfix wmass_theoryfit
+          $WREMNANTS_OUTDIR/WMass_absEtaGen_ptGen_qGen_theoryfit/fitresults.hdf5 --postfix wmass_theoryfit
           -o $WEB_DIR -f $PLOT_DIR --yscale 1.5 --noChisq --extraTextLoc 0.7 0.8
 
   wlike-analysis:
@@ -381,7 +381,7 @@ jobs:
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/setupCombine.py 
           --analysisMode unfolding --poiAsNoi -i $HIST_FILE --lumiScale $LUMI_SCALE -o $WREMNANTS_OUTDIR --postfix unfolding
-          --scaleNormXsecHistYields '0.01' --genAxes ptGen-absEtaGen-qGen
+          --scaleNormXsecHistYields '0.01' --genAxes absEtaGen-ptGen-qGen
 
       - name: wlike combine unfolding fit 
         run: >-
@@ -394,19 +394,19 @@ jobs:
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/setupCombine.py
           --analysisMode unfolding --poiAsNoi -i $HIST_FILE --lumiScale $LUMI_SCALE -o $WREMNANTS_OUTDIR --postfix unfolding
           --baseName xnorm --filterProcGroups Zmumu
-          --scaleNormXsecHistYields '0.01' --fitvar ptGen-absEtaGen-qGen --genAxes ptGen-absEtaGen-qGen
+          --scaleNormXsecHistYields '0.01' --fitvar absEtaGen-ptGen-qGen --genAxes absEtaGen-ptGen-qGen
 
       - name: wlike combine unfolded xsec
         run: >- 
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh combinetf2/scripts/fit.py 
-          $WREMNANTS_OUTDIR/ZMassWLike_ptGen_absEtaGen_qGen_unfolding/ZMassWLike.hdf5 -o $WREMNANTS_OUTDIR/ZMassWLike_ptGen_absEtaGen_qGen_unfolding/
+          $WREMNANTS_OUTDIR/ZMassWLike_absEtaGen_ptGen_qGen_unfolding/ZMassWLike.hdf5 -o $WREMNANTS_OUTDIR/ZMassWLike_absEtaGen_ptGen_qGen_unfolding/
           --externalPostfit $WREMNANTS_OUTDIR/ZMassWLike_eta_pt_charge_unfolding/fitresults_asimov.hdf5
           --saveHists --computeHistErrors --computeHistCov --computeHistImpacts --noChi2 --project ch0 ptGen --project ch0 absEtaGen
 
       - name: wlike unfolding plot xsec 
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/plotting/postfitPlots.py 
-          ${WREMNANTS_OUTDIR}/ZMassWLike_ptGen_absEtaGen_qGen_unfolding/fitresults_asimov.hdf5 -o $WEB_DIR -f $PLOT_DIR 
+          ${WREMNANTS_OUTDIR}/ZMassWLike_absEtaGen_ptGen_qGen_unfolding/fitresults_asimov.hdf5 -o $WEB_DIR -f $PLOT_DIR 
           --rrange 0.0 2.0 --unfoldedXsec --noUncertainty --noChisq --legCols 1 --noSciy --logoPos 0 --yscale 1.3
           --project ch0 ptGen --project ch0 absEtaGen
 
@@ -438,30 +438,30 @@ jobs:
       - name: wlike theoryfit setup
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/setupCombine.py -i $HIST_FILE 
-          --fitresult ${WREMNANTS_OUTDIR}/ZMassWLike_ptGen_absEtaGen_qGen_unfolding/fitresults_asimov.hdf5 --fitvar qGen-ptGen-absEtaGen 
+          --fitresult ${WREMNANTS_OUTDIR}/ZMassWLike_absEtaGen_ptGen_qGen_unfolding/fitresults_asimov.hdf5 --fitvar absEtaGen-ptGen-qGen 
           -o $WREMNANTS_OUTDIR --postfix theoryfit --baseName xnorm --realData
 
       - name: wlike theoryfit fit 
         run: >- 
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh combinetf2/scripts/fit.py 
-          $WREMNANTS_OUTDIR/ZMassWLike_qGen_ptGen_absEtaGen_theoryfit/ZMassWLike.hdf5 -o $WREMNANTS_OUTDIR/ZMassWLike_qGen_ptGen_absEtaGen_theoryfit/
+          $WREMNANTS_OUTDIR/ZMassWLike_absEtaGen_ptGen_qGen_theoryfit/ZMassWLike.hdf5 -o $WREMNANTS_OUTDIR/ZMassWLike_absEtaGen_ptGen_qGen_theoryfit/
           --doImpacts --globalImpacts --saveHists --computeHistErrors --chisqFit --externalCovariance -t 0
 
       - name: wlike theoryfit impacts
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/show_impacts.sh 
-          $WREMNANTS_OUTDIR/ZMassWLike_qGen_ptGen_absEtaGen_theoryfit/fitresults.hdf5 $WEB_DIR/$PLOT_DIR impactsWlike.html
+          $WREMNANTS_OUTDIR/ZMassWLike_absEtaGen_ptGen_qGen_theoryfit/fitresults.hdf5 $WEB_DIR/$PLOT_DIR impactsWlike.html
 
       - name: wlike theoryfit prefit plot
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/plotting/postfitPlots.py
-          $WREMNANTS_OUTDIR/ZMassWLike_qGen_ptGen_absEtaGen_theoryfit/fitresults.hdf5 --postfix wlike_theoryfit
+          $WREMNANTS_OUTDIR/ZMassWLike_absEtaGen_ptGen_qGen_theoryfit/fitresults.hdf5 --postfix wlike_theoryfit
           -o $WEB_DIR -f $PLOT_DIR --prefit --yscale 1.5
 
       - name: wlike theoryfit postfit plot
         run: >- 
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/plotting/postfitPlots.py
-          $WREMNANTS_OUTDIR/ZMassWLike_qGen_ptGen_absEtaGen_theoryfit/fitresults.hdf5 --postfix wlike_theoryfit
+          $WREMNANTS_OUTDIR/ZMassWLike_absEtaGen_ptGen_qGen_theoryfit/fitresults.hdf5 --postfix wlike_theoryfit
           -o $WEB_DIR -f $PLOT_DIR --yscale 1.5 --noChisq --extraTextLoc 0.7 0.8
 
   dilepton:

@@ -5,8 +5,8 @@ import argparse
 import h5py
 
 from narf import ioutils
-from utilities import logging
 from utilities.io_tools import input_tools
+from wums import logging
 
 # import wremnants
 

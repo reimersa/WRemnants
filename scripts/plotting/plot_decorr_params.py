@@ -6,10 +6,11 @@ import uproot
 from matplotlib.patches import Polygon
 from scipy.stats import chi2
 
-from utilities import logging, parsing
+from utilities import parsing
 from utilities.io_tools import combinetf2_input, output_tools
 from utilities.styles import styles
 from wremnants import plot_tools
+from wums import logging
 
 if __name__ == "__main__":
     parser = parsing.plot_parser()

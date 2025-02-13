@@ -11,8 +11,8 @@ import ROOT
 import uproot
 
 from narf import ioutils
-from utilities import boostHistHelpers as hh
-from utilities import logging
+from wums import boostHistHelpers as hh
+from wums import logging
 
 logger = logging.child_logger(__name__)
 
