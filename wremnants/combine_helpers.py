@@ -327,7 +327,7 @@ def add_noi_unfolding_variations(
     wmass=False,
     prior_norm=1,
     scale_norm=0.01,
-    poi_axes_flow=[],  # ["ptGen", "ptVGen"],
+    poi_axes_flow=["ptGen", "ptVGen"],
 ):
     poi_axes_syst = [f"_{n}" for n in poi_axes] if xnorm else poi_axes[:]
     noi_args = dict(

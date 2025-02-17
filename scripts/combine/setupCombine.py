@@ -903,7 +903,6 @@ def setup(
             sum_gen_axes=[a for a in datagroups.gen_axes_names if a not in poi_axes],
             base_group=base_group,
         )
-
         # FIXME: temporary customization of signal and out-of-acceptance process names for theory agnostic with POI as NOI
         # There might be a better way to do it more homogeneously with the rest.
         if isTheoryAgnostic:
@@ -1198,10 +1197,11 @@ def setup(
 
     if args.doStatOnly and isUnfolding and not isPoiAsNoi:
         # At least one nuisance parameter is needed to run combine impacts (e.g. needed for unfolding postprocessing chain)
+        # TODO: fix combineTF2 to run w/o nuisances
         datagroups.addNormSystematic(
             name="dummy",
             processes=["MCnoQCD"],
-            scale=1.0001,
+            norm=1.0001,
         )
 
     decorwidth = args.decorMassWidth or args.fitWidth

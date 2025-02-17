@@ -10,9 +10,8 @@ import numpy as np
 import ROOT
 import uproot
 
-from narf import ioutils
 from wums import boostHistHelpers as hh
-from wums import logging
+from wums import ioutils, logging
 
 logger = logging.child_logger(__name__)
 

@@ -5,9 +5,8 @@ import combinetf2.io_tools
 import hist
 import numpy as np
 
-from narf import ioutils
 from utilities.io_tools import combinetf2_input
-from wums import logging
+from wums import ioutils, logging
 
 logger = logging.child_logger(__name__)
 

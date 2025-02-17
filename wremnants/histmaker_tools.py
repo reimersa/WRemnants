@@ -3,9 +3,8 @@ import time
 
 import h5py
 
-import wums.ioutils
 from utilities import common
-from wums import logging
+from wums import ioutils, logging, output_tools
 
 logger = logging.child_logger(__name__)
 
@@ -102,7 +101,7 @@ def aggregate_groups(datasets, result_dict, groups_to_aggregate):
                 )
                 logger.warning("Summing them up probably leads to wrong behaviour")
 
-            output[h_name] = wums.ioutils.H5PickleProxy(sum(histograms))
+            output[h_name] = ioutils.H5PickleProxy(sum(histograms))
 
         result_dict[group] = resdict
         result_dict[group]["output"] = output
@@ -117,9 +116,7 @@ def aggregate_groups(datasets, result_dict, groups_to_aggregate):
 def writeMetaInfoToRootFile(rtfile, exclude_diff="notebooks", args=None):
     import ROOT
 
-    meta_dict = wums.ioutils.make_meta_info_dict(
-        exclude_diff, args=args, wd=common.base_dir
-    )
+    meta_dict = ioutils.make_meta_info_dict(exclude_diff, args=args, wd=common.base_dir)
     d = rtfile.mkdir("meta_info")
     d.cd()
 
@@ -187,12 +184,12 @@ def write_analysis_output(results, outfile, args):
     with h5py.File(outfile, open_as) as f:
         for k, v in results.items():
             logger.debug(f"Pickle and dump {k}")
-            wums.ioutils.pickle_dump_h5py(k, v, f)
+            ioutils.pickle_dump_h5py(k, v, f)
 
         if "meta_info" not in f.keys():
-            wums.ioutils.pickle_dump_h5py(
+            ioutils.pickle_dump_h5py(
                 "meta_info",
-                wums.output_tools.make_meta_info_dict(args=args, wd=common.base_dir),
+                output_tools.make_meta_info_dict(args=args, wd=common.base_dir),
                 f,
             )
 
