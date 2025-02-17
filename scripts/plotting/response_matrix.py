@@ -4,10 +4,9 @@ import mplhep as hep
 import numpy as np
 
 from utilities import parsing
-from wremnants import plot_tools
 from wremnants.datasets.datagroups import Datagroups
 from wums import boostHistHelpers as hh
-from wums import logging, output_tools
+from wums import logging, output_tools, plot_tools
 
 parser = parsing.plot_parser()
 parser.add_argument(
@@ -270,7 +269,7 @@ def plot_resolution(
             outfile += f"_{suffix}"
         plot_tools.save_pdf_and_png(outdir, outfile)
 
-        plot_tools.write_index_and_log(
+        output_tools.write_index_and_log(
             outdir,
             outfile,
             analysis_meta_info={args.infile: groups.getMetaInfo()},
@@ -537,7 +536,7 @@ for g_name, group in datagroups.items():
 
             plot_tools.save_pdf_and_png(outdir, outfile)
 
-            plot_tools.write_index_and_log(
+            output_tools.write_index_and_log(
                 outdir,
                 outfile,
                 #     yield_tables={"Values" : cov_mat}, nround=2 if "correlation" in matrix else 10,
