@@ -280,11 +280,6 @@ jobs:
 
       - name: wmass combine impacts
         run: >-
-          scripts/ci/run_with_singularity.sh scripts/ci/show_impacts.sh 
-          ${WREMNANTS_OUTDIR}/theoryAgnosticNormVar_poisAsNoi/WMass_eta_pt_charge/fitresults.hdf5 $WEB_DIR/$PLOT_DIR theoryAgnosticNormVar
-
-      - name: wmass combine impacts
-        run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh combinetf2/scripts/plot_pullsAndImpacts.py
           ${WREMNANTS_OUTDIR}/theoryAgnosticNormVar_poisAsNoi/WMass_eta_pt_charge/fitresults.hdf5 --title CMS --subtitle Preliminary
           --showNumbers --pullrange '2.1' --config utilities/styles/styles.py --oneSidedImpacts --grouping max 
@@ -312,9 +307,6 @@ jobs:
         with:
           submodules: 'recursive'
           lfs: 'true'
-
-      - name: test
-        run: echo "The web dir is $WEB_DIR plot dir is ${PLOT_DIR}"
 
       - name: wmass plotting
         run: >-
@@ -646,7 +638,7 @@ jobs:
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh combinetf2/scripts/plot_pullsAndImpacts.py
           $WREMNANTS_OUTDIR/ZMassWLike_eta_pt_charge/fitresults_uncorr.hdf5 --title CMS --subtitle Preliminary
-          -r $WREMNANTS_OUTDIR/ZMassWLike_eta_pt_charge/fitresults.hdf5 --refName asimov
+          -r $WREMNANTS_OUTDIR/ZMassWLike_eta_pt_charge/fitresults.hdf5 --refName asimov --postfix Wlike
           --showNumbers --diffPullAsym --pullrange '2.1' --config utilities/styles/styles.py
           --oneSidedImpacts --grouping max -o $WEB_DIR/$PLOT_DIR --otherExtensions pdf png -n 50 --scaleImpacts 100
 
@@ -673,18 +665,18 @@ jobs:
       - name: wlike plotting
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/plotting/makeDataMCStackPlot.py 
-          --yscale 1.3 --baseName nominal --nominalRef nominal --hists pt eta pt-eta -o $WEB_DIR/$PLOT_DIR -p wlike 
+          --yscale 1.3 --baseName nominal --nominalRef nominal --hists pt eta pt-eta -o $WEB_DIR -f $PLOT_DIR -p wlike 
           $HIST_FILE variation --varName nominal_uncorr --varLabel MiNNLO --colors red
 
       - name: wlike plot mt
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/plotting/makeDataMCStackPlot.py 
-          --baseName transverseMass --rebin 2 --legCols 1 --hists mt -o $WEB_DIR/$PLOT_DIR -p wlike $HIST_FILE
+          --baseName transverseMass --rebin 2 --legCols 1 --hists mt -o $WEB_DIR -f $PLOT_DIR -p wlike $HIST_FILE
 
       - name: wlike plot MET
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/plotting/makeDataMCStackPlot.py 
-          --baseName MET --yscale 1.2 --legCols 1 --logoPos 1 --hists MET --fineGroups -o $WEB_DIR/$PLOT_DIR -p wlike $HIST_FILE
+          --baseName MET --yscale 1.2 --legCols 1 --logoPos 1 --hists MET --fineGroups -o $WEB_DIR -f $PLOT_DIR -p wlike $HIST_FILE
 
   dilepton-mll:
     # The type of runner that the job will run on
@@ -833,9 +825,6 @@ jobs:
         with:
           submodules: 'recursive'
           lfs: 'true'
-
-      - name: test
-        run: echo "The web dir is $WEB_DIR plot dir is ${PLOT_DIR}"
 
       - name: dilepton prefit plot
         run: >-
