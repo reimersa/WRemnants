@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-
+import copy
 import os
-
-## safe batch mode
 import sys
 
 import hist
+import ROOT
 
 import narf
 from wremnants.datasets.datagroups import Datagroups
@@ -13,15 +12,13 @@ from wremnants.datasets.datagroups import Datagroups
 # from wremnants import plot_tools,theory_tools,syst_tools
 from wums import logging
 
+## safe batch mode
 args = sys.argv[:]
 sys.argv = ["-b"]
-import ROOT
-
 sys.argv = args
 ROOT.gROOT.SetBatch(True)
 ROOT.PyConfig.IgnoreCommandLineOptions = True
 
-import copy
 
 from scripts.analysisTools.plotUtils.utility import (
     adjustSettings_CMS_lumi,
