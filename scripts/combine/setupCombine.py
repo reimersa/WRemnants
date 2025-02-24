@@ -2,11 +2,11 @@
 import argparse
 import math
 
-import combinetf2.debugdata
-import combinetf2.io_tools
 import hist
 import numpy as np
 
+import combinetf2.debugdata
+import combinetf2.io_tools
 from combinetf2 import tensorwriter
 from utilities import common, parsing
 from wremnants import (

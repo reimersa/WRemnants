@@ -628,10 +628,6 @@ for h in args.hists:
     output_tools.write_index_and_log(
         outdir,
         outfile,
-        # yield_tables={
-        #
-        #
-        # },
         analysis_meta_info={
             "Stacked processes": stack_yields,
             "Unstacked processes": unstacked_yields,

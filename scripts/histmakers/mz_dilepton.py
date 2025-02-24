@@ -235,24 +235,6 @@ auxiliary_gen_axes = [
 ]
 
 if isUnfolding:
-    # 8 quantiles
-    all_axes["cosThetaStarll"] = hist.axis.Variable(
-        [-1, -0.56, -0.375, -0.19, 0.0, 0.19, 0.375, 0.56, 1.0],
-        name="cosThetaStarll",
-        underflow=False,
-        overflow=False,
-    )
-    all_axes["phiStarll"] = hist.axis.Variable(
-        [-math.pi, -2.27, -1.57, -0.87, 0, 0.87, 1.57, 2.27, math.pi],
-        name="phiStarll",
-        underflow=False,
-        overflow=False,
-    )
-    # 10 quantiles
-    all_axes["yll"] = hist.axis.Variable(
-        [-2.5, -1.5, -1.1, -0.7, -0.35, 0, 0.35, 0.7, 1.1, 1.5, 2.5], name="yll"
-    )
-
     unfolding_axes, unfolding_cols, unfolding_selections = (
         differential.get_dilepton_axes(
             args.genAxes,
@@ -278,6 +260,25 @@ for a in args.axes:
 nominal_cols = args.axes
 
 if args.csVarsHist:
+    # in case CS variables are added to the main histogram, use optimized binning
+    # 8 quantiles
+    all_axes["cosThetaStarll"] = hist.axis.Variable(
+        [-1, -0.56, -0.375, -0.19, 0.0, 0.19, 0.375, 0.56, 1.0],
+        name="cosThetaStarll",
+        underflow=False,
+        overflow=False,
+    )
+    all_axes["phiStarll"] = hist.axis.Variable(
+        [-math.pi, -2.27, -1.57, -0.87, 0, 0.87, 1.57, 2.27, math.pi],
+        name="phiStarll",
+        underflow=False,
+        overflow=False,
+    )
+    # 10 quantiles
+    all_axes["yll"] = hist.axis.Variable(
+        [-2.5, -1.5, -1.1, -0.7, -0.35, 0, 0.35, 0.7, 1.1, 1.5, 2.5], name="yll"
+    )
+
     nominal_cols += ["cosThetaStarll", "phiStarll"]
 
 nominal_axes = [all_axes[a] for a in nominal_cols]

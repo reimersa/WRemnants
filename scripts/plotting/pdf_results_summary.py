@@ -1,8 +1,8 @@
-import combinetf2.io_tools
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import ticker
 
+import combinetf2.io_tools
 from utilities import parsing
 from utilities.io_tools import hepdata_tools, output_tools
 from wremnants import plot_tools, theory_tools
