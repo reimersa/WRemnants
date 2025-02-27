@@ -97,6 +97,14 @@ def make_subparsers(parser):
                 help="Symmetrize up/Down variations in CardTool (using average)",
             )
     elif "unfolding" in subparserName:
+        parser.add_argument(
+            "--unfoldingGenLevel",
+            type=str,
+            default="postfsr",
+            choices=["prefsr", "postfsr"],
+            help="Generator level definition for unfolding",
+        )
+
         parser = parsing.set_parser_default(parser, "massVariation", 10)
         parser = parsing.set_parser_default(parser, "hdf5", True)
 
@@ -740,7 +748,7 @@ def setup(
     channel="ch0",
     fitresult_data=None,
 ):
-    xnorm = inputBaseName == "xnorm"
+    xnorm = inputBaseName in ["xnorm", "prefsr", "postfsr"]
 
     isUnfolding = args.analysisMode == "unfolding"
     isTheoryAgnostic = args.analysisMode in [
@@ -867,31 +875,11 @@ def setup(
         )
 
     if xnorm:
-        datagroups.select_xnorm_groups(base_group)
+        datagroups.select_xnorm_groups(base_group, inputBaseName)
 
     if xnorm or (isUnfolding and not isPoiAsNoi):
-        # adding charge axis
-        if wmass and ("qGen" in fitvar or (genvar is not None and "qGen" in genvar)):
-            # add gen charge as additional axis
-            datagroups.groups[base_group].memberOp = [
-                (
-                    lambda h, m=member: hh.addGenericAxis(
-                        h,
-                        hist.axis.Regular(
-                            2, -2.0, 2.0, underflow=False, overflow=False, name="qGen"
-                        ),
-                        idx=0 if "minus" in m.name else 1,
-                        add_trailing=False,
-                        flow=True,
-                    )
-                )
-                for member in datagroups.groups[base_group].members
-            ]
-            xnorm_axes = ["qGen", *datagroups.gen_axes_names]
-        else:
-            xnorm_axes = datagroups.gen_axes_names[:]
         datagroups.setGenAxes(
-            sum_gen_axes=[a for a in xnorm_axes if a not in fitvar],
+            sum_gen_axes=[a for a in datagroups.gen_axes_names if a not in fitvar],
             base_group=base_group,
         )
 
@@ -1294,9 +1282,9 @@ def setup(
                 passSystToFakes,
                 xnorm,
                 poi_axes,
-                wmass=wmass,
                 prior_norm=args.priorNormXsec,
                 scale_norm=args.scaleNormXsecHistYields,
+                gen_level=args.unfoldingGenLevel,
             )
 
     if args.muRmuFPolVar and not isTheoryAgnosticPolVar:
@@ -1313,7 +1301,7 @@ def setup(
     if args.explicitSignalMCstat:
         if xnorm and not args.fitresult:
             # use variations from reco histogram and apply them to xnorm
-            source = ("nominal", "yieldsUnfolding")
+            source = ("nominal", f"{args.unfoldingGenLevel}_yieldsUnfolding")
             # need to find the reco variables that correspond to the reco fit, reco fit must be done with variables in same order as gen bins
             gen2reco = {"qGen": "charge", "ptGen": "pt", "absEtaGen": "eta"}
             recovar = [gen2reco[v] for v in fitvar]

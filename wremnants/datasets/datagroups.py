@@ -963,7 +963,7 @@ class Datagroups(object):
             self.setMemberOp(proc_name, memberOp)
             self.unconstrainedProcesses.append(proc_name)
 
-    def select_xnorm_groups(self, select_groups=None):
+    def select_xnorm_groups(self, select_groups=None, base_name="xnorm"):
         # only keep members and groups where xnorm is defined
         logger.info(
             "Select xnorm groups" + (f" {select_groups}" if select_groups else "")
@@ -982,9 +982,9 @@ class Datagroups(object):
                     raise RuntimeError(
                         f"The member {member.name} of group {g_name} was not found in the results!"
                     )
-                if "xnorm" not in self.results[member.name]["output"].keys():
+                if base_name not in self.results[member.name]["output"].keys():
                     logger.debug(
-                        f"Member {member.name} has no xnorm and will be deleted"
+                        f"Member {member.name} has no {base_name} and will be deleted"
                     )
                     toDel_members.append(member)
             if len(toDel_members) == len(group.members):

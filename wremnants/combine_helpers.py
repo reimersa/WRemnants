@@ -324,15 +324,15 @@ def add_noi_unfolding_variations(
     passSystToFakes,
     xnorm,
     poi_axes,
-    wmass=False,
     prior_norm=1,
     scale_norm=0.01,
     poi_axes_flow=["ptGen", "ptVGen"],
+    gen_level="postfsr",
 ):
     poi_axes_syst = [f"_{n}" for n in poi_axes] if xnorm else poi_axes[:]
     noi_args = dict(
-        histname=f"xnorm" if xnorm else f"yieldsUnfolding",
-        name="yieldsUnfolding",
+        histname=gen_level if xnorm else f"{gen_level}_yieldsUnfolding",
+        name=f"{gen_level}_yieldsUnfolding",
         group=f"normXsec{label}",
         passToFakes=passSystToFakes,
         systAxes=poi_axes_syst,
@@ -353,9 +353,10 @@ def add_noi_unfolding_variations(
                 h = hh.disableFlow(h, var)
         return h
 
-    def get_scalemap(axes, scale=None, select={}):
+    def get_scalemap(axes, select={}):
         # make sure each gen bin variation has a similar effect in the reco space so that
         #  we have similar sensitivity to all parameters within the given up/down variations
+        # FIXME: this currently doesn't work, not sure why ...
         signal_samples = datagroups.procGroups["signal_samples"]
         hScale = datagroups.getHistsForProcAndSyst(
             signal_samples[0], "yieldsUnfolding", nominal_name="nominal"
@@ -364,34 +365,34 @@ def add_noi_unfolding_variations(
         hScale.values(flow=True)[...] = abs(hScale.values(flow=True))
         hScale = hScale.project(*axes)
         hScale = disable_flow(hScale)
-        scalemap = hScale.sum(flow=True).value / hScale.values(flow=True)
-        this_scale = scale * scalemap if scale is not None else scalemap
-        return this_scale
+        return hScale.sum(flow=True).value / hScale.values(flow=True)
 
     if xnorm:
 
-        def make_poi_xnorm_variations(h, poi_axes, poi_axes_syst, scale):
+        def make_poi_xnorm_variations(h, poi_axes, poi_axes_syst, norm, scalemap=None):
             hVar = hh.expand_hist_by_duplicate_axes(
                 h, poi_axes[::-1], poi_axes_syst[::-1]
             )
-            slices = [np.newaxis if a in h.axes else slice(None) for a in hVar.axes]
             hVar = disable_flow(hVar, axes_names=["_absYVGen", "_absEtaGen"])
-            hVar.values(flow=True)[...] = hVar.values(flow=True) * scale[*slices]
-            return hh.addHists(h, hVar)
-
-        scalemap = get_scalemap(poi_axes, scale_norm)
+            if scalemap is not None:
+                slices = [np.newaxis if a in h.axes else slice(None) for a in hVar.axes]
+                hVar.values(flow=True)[...] = hVar.values(flow=True) * scalemap[*slices]
+            return hh.addHists(h, hVar, scale2=norm)
 
         datagroups.addSystematic(
             **noi_args,
             baseName=f"{label}_",
             action=make_poi_xnorm_variations,
             actionArgs=dict(
-                poi_axes=poi_axes, poi_axes_syst=poi_axes_syst, scale=scalemap
+                poi_axes=poi_axes,
+                poi_axes_syst=poi_axes_syst,
+                norm=scale_norm,
+                # scalemap=get_scalemap(poi_axes)
             ),
         )
     else:
 
-        def make_poi_variations(h, poi_axes, scale):
+        def make_poi_variations(h, poi_axes, norm, scalemap=None):
             hNom = h[
                 {
                     **{ax: hist.tag.Slicer()[:: hist.sum] for ax in poi_axes},
@@ -399,59 +400,26 @@ def add_noi_unfolding_variations(
                 }
             ]
             hVar = h[{"acceptance": True}]
-            slices = [np.newaxis if a in hNom.axes else slice(None) for a in hVar.axes]
             hVar = disable_flow(hVar)
-            hVar.values(flow=True)[...] = hVar.values(flow=True) * scale[*slices]
-            return hh.addHists(hNom, hVar)
+            if scalemap is not None:
+                slices = [
+                    np.newaxis if a in hNom.axes else slice(None) for a in hVar.axes
+                ]
+                hVar.values(flow=True)[...] = hVar.values(flow=True) * scalemap[*slices]
+            return hh.addHists(hNom, hVar, scale2=norm)
 
-        if wmass:
-            # add two sets of systematics, one for each charge
-            poi_axes = [p for p in poi_axes if p != "qGen"]
-            poi_axes_syst = [f"_{n}" for n in poi_axes] if xnorm else poi_axes[:]
-            noi_args["labelsByAxis"] = [
-                f"_{p}" if p != poi_axes[0] else p for p in poi_axes
-            ]
-            noi_args["systAxes"] = poi_axes_syst
-            for sign, sign_idx in (("minus", 0), ("plus", 1)):
-                scalemap = get_scalemap(
-                    poi_axes, scale_norm, select={"charge": sign_idx}
-                )
-                noi_args["name"] = f"noiW{sign}"
-                datagroups.addSystematic(
-                    **noi_args,
-                    baseName=f"W_qGen{sign_idx}_",
-                    systAxesFlow=[n for n in poi_axes if n in poi_axes_flow],
-                    preOpMap={
-                        m.name: (
-                            make_poi_variations
-                            if sign in m.name
-                            else (
-                                lambda h, poi_axes, scale: h[
-                                    {
-                                        **{
-                                            ax: hist.tag.Slicer()[:: hist.sum]
-                                            for ax in poi_axes
-                                        },
-                                        "acceptance": hist.tag.Slicer()[:: hist.sum],
-                                    }
-                                ]
-                            )
-                        )
-                        for g in datagroups.procGroups["signal_samples"]
-                        for m in datagroups.groups[g].members
-                    },
-                    preOpArgs=dict(poi_axes=poi_axes, scale=scalemap),
-                )
-        else:
-            scalemap = get_scalemap(poi_axes, scale_norm)
-            datagroups.addSystematic(
-                **noi_args,
-                baseName=f"{label}_",
-                systAxesFlow=[n for n in poi_axes if n in poi_axes_flow],
-                preOpMap={
-                    m.name: make_poi_variations
-                    for g in datagroups.procGroups["signal_samples"]
-                    for m in datagroups.groups[g].members
-                },
-                preOpArgs=dict(poi_axes=poi_axes, scale=scalemap),
-            )
+        datagroups.addSystematic(
+            **noi_args,
+            baseName=f"{label}_",
+            systAxesFlow=[n for n in poi_axes if n in poi_axes_flow],
+            preOpMap={
+                m.name: make_poi_variations
+                for g in datagroups.procGroups["signal_samples"]
+                for m in datagroups.groups[g].members
+            },
+            preOpArgs=dict(
+                poi_axes=poi_axes,
+                norm=scale_norm,
+                # scalemap=get_scalemap(poi_axes),
+            ),
+        )

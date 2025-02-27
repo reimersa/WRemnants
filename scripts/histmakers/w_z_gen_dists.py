@@ -289,7 +289,7 @@ def build_graph(df, dataset):
         if isZ and args.fiducial == "singlelep":
             mode += "_wlike"
 
-        df = unfolding_tools.define_gen_level(df, "preFSR", dataset.name, mode=mode)
+        df = unfolding_tools.define_gen_level(df, dataset.name, ["preFSR"], mode=mode)
         df = unfolding_tools.select_fiducial_space(
             df,
             mode=mode,

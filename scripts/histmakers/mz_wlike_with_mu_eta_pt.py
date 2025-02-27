@@ -94,15 +94,7 @@ parser.add_argument(
 
 args = parser.parse_args()
 logger = logging.setup_logger(__file__, args.verbose, args.noColorLogger)
-
-isUnfolding = args.analysisMode == "unfolding"
-isTheoryAgnostic = args.analysisMode in [
-    "theoryAgnosticNormVar",
-    "theoryAgnosticPolVar",
-]
-isTheoryAgnosticPolVar = args.analysisMode == "theoryAgnosticPolVar"
-isPoiAsNoi = (isUnfolding or isTheoryAgnostic) and args.poiAsNoi
-isFloatingPOIsTheoryAgnostic = isTheoryAgnostic and not isPoiAsNoi
+isFloatingPOIsTheoryAgnostic = args.theoryAgnostic and not args.poiAsNoi
 
 if isFloatingPOIsTheoryAgnostic:
     raise ValueError(
@@ -116,7 +108,7 @@ parser = parsing.set_parser_default(parser, "excludeProcs", ["QCD"])
 if args.addIsoMtAxes:
     parser = parsing.set_parser_default(parser, "muonIsolation", [0, 1])
 
-if isTheoryAgnostic:
+if args.theoryAgnostic:
     if args.genAbsYVbinEdges and any(x < 0.0 for x in args.genAbsYVbinEdges):
         raise ValueError(
             "Option --genAbsYVbinEdges requires all positive values. Please check"
@@ -235,43 +227,52 @@ if args.addIsoMtAxes:
     nominal_axes.extend([axis_mtCat, axis_isoCat])
     nominal_cols.extend(["transverseMass", "trigMuons_relIso0"])
 
-if isUnfolding:
-    template_wpt = (template_maxpt - template_minpt) / args.genBins[0]
+if args.unfolding:
+    template_wpt = (template_maxpt - template_minpt) / args.unfoldingBins[0]
     min_pt_unfolding = template_minpt + template_wpt
     max_pt_unfolding = template_maxpt - template_wpt
-    npt_unfolding = args.genBins[0] - 2
-    unfolding_axes, unfolding_cols = differential.get_pt_eta_charge_axes(
-        npt_unfolding,
-        min_pt_unfolding,
-        max_pt_unfolding,
-        args.genBins[1],
-        flow_pt=True,
-        flow_eta=isPoiAsNoi,
-        add_out_of_acceptance_axis=isPoiAsNoi,
-    )
-    if not isPoiAsNoi:
-        datasets = unfolding_tools.add_out_of_acceptance(datasets, group="Zmumu")
-        datasets = unfolding_tools.add_out_of_acceptance(datasets, group="Ztautau")
+    npt_unfolding = args.unfoldingBins[0] - 2
 
-    if args.fitresult:
-        noi_axes = [a for a in unfolding_axes if a.name != "acceptance"]
-        unfolding_corr_helper = unfolding_tools.reweight_to_fitresult(
-            args.fitresult, noi_axes, process="Z", poi_type="nois"
+    unfolding_axes = {}
+    unfolding_cols = {}
+    for level in args.unfoldingLevels:
+
+        a, c = differential.get_pt_eta_charge_axes(
+            level,
+            npt_unfolding,
+            min_pt_unfolding,
+            max_pt_unfolding,
+            args.unfoldingBins[1],
+            flow_pt=True,
+            flow_eta=args.poiAsNoi,
+            add_out_of_acceptance_axis=args.poiAsNoi,
         )
+        unfolding_axes[level] = a
+        unfolding_cols[level] = c
+
+        if not args.poiAsNoi:
+            datasets = unfolding_tools.add_out_of_acceptance(datasets, group="Zmumu")
+            datasets = unfolding_tools.add_out_of_acceptance(datasets, group="Ztautau")
+
+        if args.fitresult:
+            noi_axes = [a for a in unfolding_axes if a.name != f"{level}_acceptance"]
+            unfolding_corr_helper = unfolding_tools.reweight_to_fitresult(
+                args.fitresult, noi_axes, process="Z", poi_type="nois"
+            )
 
 
-elif isTheoryAgnostic:
+if args.theoryAgnostic:
     theoryAgnostic_axes, theoryAgnostic_cols = differential.get_theoryAgnostic_axes(
-        ptV_bins=args.genPtVbinEdges,
-        absYV_bins=args.genAbsYVbinEdges,
-        ptV_flow=isPoiAsNoi,
-        absYV_flow=isPoiAsNoi,
+        ptV_bins=args.theoryAgnosticGenPtVbinEdges,
+        absYV_bins=args.theoryAgnosticGenAbsYVbinEdges,
+        ptV_flow=args.poiAsNoi,
+        absYV_flow=args.poiAsNoi,
         wlike=True,
     )
     axis_helicity = helicity_utils.axis_helicity_multidim
     # the following just prepares the existence of the group for out-of-acceptance signal, but doesn't create or define the histogram yet
-    if not isPoiAsNoi or (
-        isTheoryAgnosticPolVar and args.theoryAgnosticSplitOOA
+    if not args.poiAsNoi or (
+        args.theoryAgnosticPolVar and args.theoryAgnosticSplitOOA
     ):  # this splitting is not needed for the normVar version of the theory agnostic
         raise ValueError("This option is not currently implemented")
 
@@ -407,7 +408,7 @@ corr_helpers = theory_corrections.load_corr_helpers(
 )
 
 # helpers for muRmuF MiNNLO polynomial variations
-if isTheoryAgnosticPolVar:
+if args.theoryAgnosticPolVar:
     muRmuFPolVar_helpers_minus = makehelicityWeightHelper_polvar(
         genVcharge=-1,
         fileTag=args.muRmuFPolVarFileTag,
@@ -457,9 +458,9 @@ def build_graph(df, dataset):
     axes = nominal_axes
     cols = nominal_cols
 
-    if isUnfolding and isZ:
+    if args.unfolding and isZ:
         df = unfolding_tools.define_gen_level(
-            df, args.genLevel, dataset.name, mode=analysis_label
+            df, dataset.name, args.unfoldingLevels, mode=analysis_label
         )
         cutsmap = {
             "pt_min": template_minpt,
@@ -475,10 +476,6 @@ def build_graph(df, dataset):
                 df, mode=analysis_label, accept=False, **cutsmap
             )
         else:
-            df = unfolding_tools.select_fiducial_space(
-                df, mode=analysis_label, accept=True, select=not isPoiAsNoi, **cutsmap
-            )
-
             if args.fitresult:
                 logger.debug("Apply reweighting based on unfolded result")
                 df = df.Define(
@@ -489,25 +486,35 @@ def build_graph(df, dataset):
                 df = df.Define(
                     "central_weight", "acceptance ? unfoldingWeight_tensor(0) : unity"
                 )
+            for level in args.unfoldingLevels:
+                df = unfolding_tools.select_fiducial_space(
+                    df,
+                    level,
+                    mode=analysis_label,
+                    accept=True,
+                    select=not args.poiAsNoi,
+                    **cutsmap,
+                )
 
-            if isPoiAsNoi:
-                df_xnorm = df.Filter("acceptance")
-            else:
-                df_xnorm = df
+                if args.poiAsNoi:
+                    df_xnorm = df.Filter(f"{level}_acceptance")
+                else:
+                    df_xnorm = df
 
-            unfolding_tools.add_xnorm_histograms(
-                results,
-                df_xnorm,
-                args,
-                dataset.name,
-                corr_helpers,
-                qcdScaleByHelicity_helper,
-                unfolding_axes,
-                unfolding_cols,
-            )
-            if not isPoiAsNoi:
-                axes = [*nominal_axes, *unfolding_axes]
-                cols = [*nominal_cols, *unfolding_cols]
+                unfolding_tools.add_xnorm_histograms(
+                    results,
+                    df_xnorm,
+                    args,
+                    dataset.name,
+                    corr_helpers,
+                    qcdScaleByHelicity_helper,
+                    [a for a in unfolding_axes[level] if a.name != "acceptance"],
+                    [c for c in unfolding_cols[level] if c != f"{level}_acceptance"],
+                    base_name=level,
+                )
+                if not args.poiAsNoi:
+                    axes = [*nominal_axes, *unfolding_axes[level]]
+                    cols = [*nominal_cols, *unfolding_cols[level]]
 
     if isZ:
         df = theory_tools.define_prefsr_vars(df)
@@ -793,7 +800,7 @@ def build_graph(df, dataset):
         )
     )
 
-    if isZ and isTheoryAgnostic:
+    if isZ and args.theoryAgnostic:
         df = theoryAgnostic_tools.define_helicity_weights(df, is_w_like=True)
 
     if not args.noRecoil:
@@ -872,7 +879,7 @@ def build_graph(df, dataset):
 
     df = df.Define("passWlikeMT", f"transverseMass >= {mtw_min}")
 
-    if not args.onlyMainHistograms and not isUnfolding and not args.addIsoMtAxes:
+    if not args.onlyMainHistograms and not args.unfolding and not args.addIsoMtAxes:
         axis_mt_coarse = hist.axis.Variable(
             [0.0, 15.0, 30.0, 45.0, 60.0, 75.0, 90.0, 120.0],
             name="mt",
@@ -1110,7 +1117,7 @@ def build_graph(df, dataset):
     nominal = df.HistoBoost("nominal", axes, [*cols, "nominal_weight"])
     results.append(nominal)
 
-    if useTnpMuonVarForSF and not args.onlyMainHistograms and not isUnfolding:
+    if useTnpMuonVarForSF and not args.onlyMainHistograms and not args.unfolding:
         df = df.Define(
             "trigMuons_deltaPt_corrMinusTnp", "trigMuons_pt0 - trigMuons_tnpPt0"
         )
@@ -1158,8 +1165,8 @@ def build_graph(df, dataset):
             )
         )
 
-    if isPoiAsNoi and isZ:
-        if isTheoryAgnostic and not hasattr(dataset, "out_of_acceptance"):
+    if args.poiAsNoi and isZ:
+        if args.theoryAgnostic and not hasattr(dataset, "out_of_acceptance"):
             noiAsPoiHistName = Datagroups.histName(
                 "nominal", syst="yieldsTheoryAgnostic"
             )
@@ -1174,7 +1181,7 @@ def build_graph(df, dataset):
                     tensor_axes=[axis_helicity],
                 )
             )
-            if isTheoryAgnosticPolVar:
+            if args.theoryAgnosticPolVar:
                 theoryAgnostic_helpers_cols = [
                     "qtOverQ",
                     "absYVgen",
@@ -1208,18 +1215,21 @@ def build_graph(df, dataset):
                             storage=hist.storage.Double(),
                         )
                     )
-        if isUnfolding and dataset.name == "ZmumuPostVFP":
-            noiAsPoiHistName = Datagroups.histName("nominal", syst="yieldsUnfolding")
-            logger.debug(
-                f"Creating special histogram '{noiAsPoiHistName}' for unfolding to treat POIs as NOIs"
-            )
-            results.append(
-                df.HistoBoost(
-                    noiAsPoiHistName,
-                    [*nominal_axes, *unfolding_axes],
-                    [*nominal_cols, *unfolding_cols, "nominal_weight"],
+        if args.unfolding and dataset.name == "ZmumuPostVFP":
+            for level in args.unfoldingLevels:
+                noiAsPoiHistName = Datagroups.histName(
+                    "nominal", syst=f"{level}_yieldsUnfolding"
                 )
-            )
+                logger.debug(
+                    f"Creating special histogram '{noiAsPoiHistName}' for unfolding to treat POIs as NOIs"
+                )
+                results.append(
+                    df.HistoBoost(
+                        noiAsPoiHistName,
+                        [*nominal_axes, *unfolding_axes[level]],
+                        [*nominal_cols, *unfolding_cols[level], "nominal_weight"],
+                    )
+                )
 
     if not args.noRecoil and args.recoilUnc:
         df = recoilHelper.add_recoil_unc_Z(df, results, dataset, cols, axes, "nominal")

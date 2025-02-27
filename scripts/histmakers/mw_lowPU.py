@@ -19,7 +19,6 @@ parser = parsing.set_parser_default(parser, "met", "RawPFMET")
 parser = parsing.set_parser_default(parser, "era", "2017H")
 
 args = parser.parse_args()
-isUnfolding = args.analysisMode == "unfolding"
 
 
 import math
@@ -122,10 +121,15 @@ gen_axes = {
 
 groups_to_aggregate = args.aggregateGroups
 
-if isUnfolding:
-    unfolding_axes, unfolding_cols, unfolding_selections = (
-        differential.get_dilepton_axes(args.genAxes, gen_axes)
-    )
+if args.unfolding:
+    unfolding_axes = {}
+    unfolding_cols = {}
+    unfolding_selections = {}
+    for level in args.unfoldingLevels:
+        a, c, s = differential.get_dilepton_axes(args.unfoldingAxes, gen_axes, level)
+        unfolding_axes[level] = a
+        unfolding_cols[level] = c
+        unfolding_selections[level] = s
     datasets = unfolding_tools.add_out_of_acceptance(datasets, group=base_group)
     groups_to_aggregate.append(f"{base_group}OOA")
 
@@ -195,14 +199,15 @@ def build_graph(df, dataset):
     axes = nominal_axes
     cols = nominal_cols
 
-    if isUnfolding and dataset.name in sigProcs:
+    if args.unfolding and dataset.name in sigProcs:
         df = unfolding_tools.define_gen_level(
-            df, args.genLevel, dataset.name, mode=analysis_label
+            df, dataset.name, args.unfoldingLevels, mode=analysis_label
         )
 
         if hasattr(dataset, "out_of_acceptance"):
             df = unfolding_tools.select_fiducial_space(
                 df,
+                args.unfoldingLevels[0],
                 mode="wmass",
                 pt_min=args.pt[1],
                 pt_max=args.pt[2],
@@ -211,28 +216,39 @@ def build_graph(df, dataset):
                 accept=False,
             )
         else:
-            df = unfolding_tools.select_fiducial_space(
-                df,
-                mode="wmass",
-                pt_min=args.pt[1],
-                pt_max=args.pt[2],
-                mtw_min=mtw_min,
-                selections=unfolding_selections,
-                accept=True,
-            )
+            for level in args.unfoldingLevels:
+                logger.debug(f"Select events in {level} fiducial phase space")
+                df = unfolding_tools.select_fiducial_space(
+                    df,
+                    level,
+                    mode="wmass",
+                    pt_min=args.pt[1],
+                    pt_max=args.pt[2],
+                    mtw_min=mtw_min,
+                    selections=unfolding_selections,
+                    select=not args.poiAsNoi,
+                    accept=True,
+                )
 
-            unfolding_tools.add_xnorm_histograms(
-                results,
-                df,
-                args,
-                dataset.name,
-                corr_helpers,
-                qcdScaleByHelicity_helper,
-                unfolding_axes,
-                unfolding_cols,
-            )
-            axes = [*axes, *unfolding_axes]
-            cols = [*cols, *unfolding_cols]
+                if args.poiAsNoi:
+                    df_xnorm = df.Filter(f"{level}_acceptance")
+                else:
+                    df_xnorm = df
+
+                unfolding_tools.add_xnorm_histograms(
+                    results,
+                    df,
+                    args,
+                    dataset.name,
+                    corr_helpers,
+                    qcdScaleByHelicity_helper,
+                    [a for a in unfolding_axes[level] if a.name != "acceptance"],
+                    [c for c in unfolding_cols[level] if c != f"{level}_acceptance"],
+                    base_name=level,
+                )
+                if not args.poiAsNoi:
+                    axes = [*axes, *unfolding_axes[level]]
+                    cols = [*cols, *unfolding_cols[level]]
 
     if flavor == "mu":
         if not dataset.is_data:
@@ -617,6 +633,24 @@ def build_graph(df, dataset):
 
             if not args.noRecoil and args.recoilUnc:
                 df = recoilHelper.add_recoil_unc_W(df, results, dataset, c, a, n)
+
+    if args.unfolding and args.poiAsNoi and dataset.name in sigProcs:
+        for level in args.unfoldingLevels:
+            noiAsPoiHistName = Datagroups.histName(
+                "nominal", syst=f"{level}_yieldsUnfolding"
+            )
+            logger.debug(
+                f"Creating special histogram '{noiAsPoiHistName}' for unfolding to treat POIs as NOIs"
+            )
+            yield_axes = [*axes, *unfolding_axes[level]]
+            yield_cols = [*cols, *unfolding_cols[level]]
+            results.append(
+                df.HistoBoost(
+                    noiAsPoiHistName,
+                    yield_axes,
+                    [*yield_cols, f"nominal_weight"],
+                )
+            )
 
     if dataset.name in sigProcs:
         # dummy lepton momentum scale

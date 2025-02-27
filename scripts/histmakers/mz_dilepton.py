@@ -91,9 +91,6 @@ parser = parsing.set_parser_default(
 )
 
 args = parser.parse_args()
-isUnfolding = args.analysisMode == "unfolding"
-isPoiAsNoi = isUnfolding and args.poiAsNoi
-inclusive = hasattr(args, "inclusive") and args.inclusive
 
 logger = logging.setup_logger(__file__, args.verbose, args.noColorLogger)
 
@@ -234,19 +231,28 @@ auxiliary_gen_axes = [
     "ewLogDeltaM",  # ew variables
 ]
 
-if isUnfolding:
-    unfolding_axes, unfolding_cols, unfolding_selections = (
-        differential.get_dilepton_axes(
-            args.genAxes,
-            common.get_gen_axes(dilepton_ptV_binning, inclusive, flow=True),
-            add_out_of_acceptance_axis=isPoiAsNoi,
+if args.unfolding:
+    unfolding_axes = {}
+    unfolding_cols = {}
+    unfolding_selections = {}
+    for level in args.unfoldingLevels:
+        a, c, s = differential.get_dilepton_axes(
+            args.unfoldingAxes,
+            common.get_gen_axes(
+                dilepton_ptV_binning, args.unfoldingInclusive, flow=True
+            ),
+            level,
+            add_out_of_acceptance_axis=args.poiAsNoi,
         )
-    )
-    if not isPoiAsNoi:
+        unfolding_axes[level] = a
+        unfolding_cols[level] = c
+        unfolding_selections[level] = s
+
+    if not args.poiAsNoi:
         datasets = unfolding_tools.add_out_of_acceptance(datasets, group="Zmumu")
 
     if args.fitresult:
-        noi_axes = [a for a in unfolding_axes if a.name != "acceptance"]
+        noi_axes = [a for a in unfolding_axes if not a.name.endswith("acceptance")]
         unfolding_corr_helper = unfolding_tools.reweight_to_fitresult(
             args.fitresult, noi_axes, process="Z", poi_type="nois"
         )
@@ -429,9 +435,9 @@ def build_graph(df, dataset):
         ]
         cols = [*cols, "run"]
 
-    if isUnfolding and dataset.name == "ZmumuPostVFP":
+    if args.unfolding and dataset.name == "ZmumuPostVFP":
         df = unfolding_tools.define_gen_level(
-            df, args.genLevel, dataset.name, mode=analysis_label
+            df, dataset.name, args.unfoldingLevels, mode=analysis_label
         )
         cutsmap = {
             "pt_min": args.pt[1],
@@ -441,27 +447,20 @@ def build_graph(df, dataset):
             "mass_max": mass_max,
         }
 
-        if inclusive:
+        if args.unfoldingInclusive:
             cutsmap = {"fiducial": "masswindow"}
 
         if hasattr(dataset, "out_of_acceptance"):
+            # only for exact unfolding
             df = unfolding_tools.select_fiducial_space(
                 df,
+                args.unfoldingLevels[0],
                 mode=analysis_label,
-                selections=unfolding_selections,
+                selections=unfolding_selections[args.unfoldingLevels[0]],
                 accept=False,
                 **cutsmap,
             )
         else:
-            df = unfolding_tools.select_fiducial_space(
-                df,
-                mode=analysis_label,
-                selections=unfolding_selections,
-                select=not isPoiAsNoi,
-                accept=True,
-                **cutsmap,
-            )
-
             if args.fitresult:
                 logger.debug("Apply reweighting based on unfolded result")
                 df = df.Define(
@@ -472,26 +471,37 @@ def build_graph(df, dataset):
                 df = df.Define(
                     "central_weight", "acceptance ? unfoldingWeight_tensor(0) : unity"
                 )
+            for level in args.unfoldingLevels:
+                df = unfolding_tools.select_fiducial_space(
+                    df,
+                    level,
+                    mode=analysis_label,
+                    selections=unfolding_selections[level],
+                    select=not args.poiAsNoi,
+                    accept=True,
+                    **cutsmap,
+                )
 
-            if isPoiAsNoi:
-                df_xnorm = df.Filter("acceptance")
-            else:
-                df_xnorm = df
+                if args.poiAsNoi:
+                    df_xnorm = df.Filter(f"{level}_acceptance")
+                else:
+                    df_xnorm = df
 
-            unfolding_tools.add_xnorm_histograms(
-                results,
-                df_xnorm,
-                args,
-                dataset.name,
-                corr_helpers,
-                qcdScaleByHelicity_helper,
-                [a for a in unfolding_axes if a.name != "acceptance"],
-                [c for c in unfolding_cols if c != "acceptance"],
-                add_helicity_axis="helicitySig" in args.genAxes,
-            )
-            if not isPoiAsNoi:
-                axes = [*nominal_axes, *unfolding_axes]
-                cols = [*nominal_cols, *unfolding_cols]
+                unfolding_tools.add_xnorm_histograms(
+                    results,
+                    df_xnorm,
+                    args,
+                    dataset.name,
+                    corr_helpers,
+                    qcdScaleByHelicity_helper,
+                    [a for a in unfolding_axes[level] if a.name != "acceptance"],
+                    [c for c in unfolding_cols[level] if c != f"{level}_acceptance"],
+                    add_helicity_axis="helicitySig" in args.unfoldingAxes,
+                    base_name=level,
+                )
+                if not args.poiAsNoi:
+                    axes = [*nominal_axes, *unfolding_axes[level]]
+                    cols = [*nominal_cols, *unfolding_cols[level]]
 
     if not args.noAuxiliaryHistograms and isZ and len(auxiliary_gen_axes):
         # gen level variables before selection
@@ -880,30 +890,35 @@ def build_graph(df, dataset):
     )
     results.append(hNValidPixelHitsNonTrig)
 
-    if isUnfolding and isPoiAsNoi and dataset.name == "ZmumuPostVFP":
-        noiAsPoiHistName = Datagroups.histName("nominal", syst="yieldsUnfolding")
-        logger.debug(
-            f"Creating special histogram '{noiAsPoiHistName}' for unfolding to treat POIs as NOIs"
-        )
-        if "helicitySig" in getattr(args, "genAxes", []):
-            from wremnants.helicity_utils import axis_helicity_multidim
+    if args.unfolding and args.poiAsNoi and dataset.name == "ZmumuPostVFP":
+        for level in args.unfoldingLevels:
+            noiAsPoiHistName = Datagroups.histName(
+                "nominal", syst=f"{level}_yieldsUnfolding"
+            )
+            logger.debug(
+                f"Creating special histogram '{noiAsPoiHistName}' for unfolding to treat POIs as NOIs"
+            )
+            yield_axes = [*nominal_axes, *unfolding_axes[level]]
+            yield_cols = [*nominal_cols, *unfolding_cols[level]]
+            if "helicitySig" in getattr(args, "genAxes", []):
+                from wremnants.helicity_utils import axis_helicity_multidim
 
-            results.append(
-                df.HistoBoost(
-                    noiAsPoiHistName,
-                    [*nominal_axes, *unfolding_axes],
-                    [*nominal_cols, *unfolding_cols, "nominal_weight_helicity"],
-                    tensor_axes=[axis_helicity_multidim],
+                results.append(
+                    df.HistoBoost(
+                        noiAsPoiHistName,
+                        yield_axes,
+                        [*yield_cols, "nominal_weight_helicity"],
+                        tensor_axes=[axis_helicity_multidim],
+                    )
                 )
-            )
-        else:
-            results.append(
-                df.HistoBoost(
-                    noiAsPoiHistName,
-                    [*nominal_axes, *unfolding_axes],
-                    [*nominal_cols, *unfolding_cols, "nominal_weight"],
+            else:
+                results.append(
+                    df.HistoBoost(
+                        noiAsPoiHistName,
+                        yield_axes,
+                        [*yield_cols, "nominal_weight"],
+                    )
                 )
-            )
 
     if not args.noAuxiliaryHistograms:
         for obs in [
