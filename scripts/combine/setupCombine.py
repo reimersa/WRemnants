@@ -98,11 +98,11 @@ def make_subparsers(parser):
             )
     elif "unfolding" in subparserName:
         parser.add_argument(
-            "--unfoldingGenLevel",
+            "--unfoldingLevel",
             type=str,
-            default="postfsr",
+            default="prefsr",
             choices=["prefsr", "postfsr"],
-            help="Generator level definition for unfolding",
+            help="Definition for unfolding",
         )
 
         parser = parsing.set_parser_default(parser, "massVariation", 10)
@@ -881,6 +881,7 @@ def setup(
         datagroups.setGenAxes(
             sum_gen_axes=[a for a in datagroups.gen_axes_names if a not in fitvar],
             base_group=base_group,
+            histToReadAxes=args.unfoldingLevel if isUnfolding else inputBaseName,
         )
 
     if isPoiAsNoi:
@@ -940,9 +941,6 @@ def setup(
                 )  # remove out of acceptance signal
     elif isUnfolding or isTheoryAgnostic:
         constrainMass = False if isTheoryAgnostic else True
-        datagroups.setGenAxes(genvar, base_group=base_group)
-        logger.info(f"GEN axes are {genvar}")
-
         datagroups.sum_gen_axes = [
             n for n in datagroups.sum_gen_axes if n not in fitvar
         ]
@@ -952,6 +950,7 @@ def setup(
             base_group[0],
             member_filter=lambda x: not x.name.endswith("OOA"),
             fitvar=fitvar,
+            histToReadAxes=args.unfoldingLevel,
         )
 
         # out of acceptance contribution
@@ -1284,7 +1283,7 @@ def setup(
                 poi_axes,
                 prior_norm=args.priorNormXsec,
                 scale_norm=args.scaleNormXsecHistYields,
-                gen_level=args.unfoldingGenLevel,
+                gen_level=args.unfoldingLevel,
             )
 
     if args.muRmuFPolVar and not isTheoryAgnosticPolVar:
@@ -1301,7 +1300,7 @@ def setup(
     if args.explicitSignalMCstat:
         if xnorm and not args.fitresult:
             # use variations from reco histogram and apply them to xnorm
-            source = ("nominal", f"{args.unfoldingGenLevel}_yieldsUnfolding")
+            source = ("nominal", f"{inputBaseName}_yieldsUnfolding")
             # need to find the reco variables that correspond to the reco fit, reco fit must be done with variables in same order as gen bins
             gen2reco = {"qGen": "charge", "ptGen": "pt", "absEtaGen": "eta"}
             recovar = [gen2reco[v] for v in fitvar]
@@ -1457,9 +1456,14 @@ def setup(
                     passSystToFakes=passSystToFakes,
                 )
 
+        if inputBaseName == "prefsr":
+            ewUncs = [*args.ewUnc, *args.isrUnc]
+        else:
+            ewUncs = [*args.ewUnc, *args.fsrUnc, *args.isrUnc]
+
         combine_helpers.add_electroweak_uncertainty(
             datagroups,
-            [*args.ewUnc, *args.fsrUnc, *args.isrUnc],
+            ewUncs,
             samples="single_v_samples",
             flavor=datagroups.flavor,
             passSystToFakes=passSystToFakes,

@@ -374,10 +374,10 @@ groups_to_aggregate = args.aggregateGroups
 
 if args.unfolding:
     # first and last pT bins are merged into under and overflow
-    template_wpt = (template_maxpt - template_minpt) / args.unfoldingBins[0]
+    template_wpt = (template_maxpt - template_minpt) / args.unfoldingBins[1]
     min_pt_unfolding = template_minpt + template_wpt
     max_pt_unfolding = template_maxpt - template_wpt
-    npt_unfolding = args.unfoldingBins[0] - 2
+    npt_unfolding = args.unfoldingBins[1] - 2
 
     unfolding_axes = {}
     unfolding_cols = {}
@@ -387,22 +387,28 @@ if args.unfolding:
             npt_unfolding,
             min_pt_unfolding,
             max_pt_unfolding,
-            args.unfoldingBins[1] if "absEtaGen" in args.unfoldingAxes else None,
+            args.unfoldingBins[0] if "absEtaGen" in args.unfoldingAxes else None,
             flow_eta=args.poiAsNoi,
             add_out_of_acceptance_axis=args.poiAsNoi,
         )
         unfolding_axes[level] = a
         unfolding_cols[level] = c
 
-        if not args.poiAsNoi:
-            datasets = unfolding_tools.add_out_of_acceptance(datasets, group="Wmunu")
-            # datasets = unfolding_tools.add_out_of_acceptance(datasets, group = "Wtaunu")
-
         if args.fitresult:
             noi_axes = [a for a in unfolding_axes if a.name != f"{level}_acceptance"]
             unfolding_corr_helper = unfolding_tools.reweight_to_fitresult(
                 args.fitresult, noi_axes, process="W", poi_type="nois"
             )
+
+        if not args.poiAsNoi:
+            datasets = unfolding_tools.add_out_of_acceptance(datasets, group="Wmunu")
+            # datasets = unfolding_tools.add_out_of_acceptance(datasets, group = "Wtaunu")
+            if len(args.unfoldingLevels) > 1:
+                logger.warning(
+                    f"Exact unfolding with multiple gen level definitions is not possible, take first one: {args.unfoldingLevels[0]} and continue."
+                )
+                break
+
 
 if args.theoryAgnostic:
     theoryAgnostic_axes, theoryAgnostic_cols = differential.get_theoryAgnostic_axes(
@@ -720,7 +726,7 @@ def build_graph(df, dataset):
 
     # disable auxiliary histograms when unfolding to reduce memory consumptions, or when doing the original theory agnostic without --poiAsNoi
     auxiliary_histograms = True
-    if args.noAuxiliaryHistograms or args.unfolding or isFloatingPOIsTheoryAgnostic:
+    if args.noAuxiliaryHistograms or isFloatingPOIsTheoryAgnostic:
         auxiliary_histograms = False
 
     apply_theory_corr = theory_corrs and dataset.name in corr_helpers
@@ -809,6 +815,7 @@ def build_graph(df, dataset):
                 if not args.poiAsNoi:
                     axes = [*nominal_axes, *unfolding_axes[level]]
                     cols = [*nominal_cols, *unfolding_cols[level]]
+                    break
 
     if isWorZ:
         df = theory_tools.define_prefsr_vars(df)

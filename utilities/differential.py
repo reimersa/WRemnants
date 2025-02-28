@@ -106,16 +106,15 @@ def get_dilepton_axes(gen_vars, gen_axes, gen_level, add_out_of_acceptance_axis=
     selections = []
 
     # selections for out of fiducial region, use overflow bin in ptVGen (i.e. not treated as out of acceptance)
-    if "ptVGen" in gen_vars:
-        axes.append(gen_axes["ptVGen"])
-        cols.append(f"{gen_level}V_pt")
-        if not gen_axes["ptVGen"].traits.overflow:
-            selections.append(f"{gen_level}V_pt < {gen_axes['ptVGen'].edges[-1]}")
+    for v in gen_vars:
+        var = v.replace("qVGen", "charge").replace("VGen", "")
+        axes.append(gen_axes[v])
+        cols.append(f"{gen_level}V_{var}")
 
-    if "absYVGen" in gen_vars:
-        selections.append(f"{gen_level}V_absY < {gen_axes['absYVGen'].edges[-1]}")
-        axes.append(gen_axes["absYVGen"])
-        cols.append(f"{gen_level}V_absY")
+        if v == "ptVGen" and not gen_axes["ptVGen"].traits.overflow:
+            selections.append(f"{gen_level}V_pt < {gen_axes['ptVGen'].edges[-1]}")
+        elif v == "absYVGen":
+            selections.append(f"{gen_level}V_absY < {gen_axes['absYVGen'].edges[-1]}")
 
     if add_out_of_acceptance_axis:
         axes.append(hist.axis.Boolean(name="acceptance"))

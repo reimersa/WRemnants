@@ -117,6 +117,9 @@ gen_axes = {
         underflow=False,
         overflow=False,
     ),
+    "qVGen": hist.axis.Regular(
+        2, -2.0, 2.0, underflow=False, overflow=False, name=f"qVGen"
+    ),
 }
 
 groups_to_aggregate = args.aggregateGroups
@@ -130,7 +133,14 @@ if args.unfolding:
         unfolding_axes[level] = a
         unfolding_cols[level] = c
         unfolding_selections[level] = s
-    datasets = unfolding_tools.add_out_of_acceptance(datasets, group=base_group)
+
+        if not args.poiAsNoi:
+            datasets = unfolding_tools.add_out_of_acceptance(datasets, group=base_group)
+            if len(args.unfoldingLevels) > 1:
+                logger.warning(
+                    f"Exact unfolding with multiple gen level definitions is not possible, take first one: {args.unfoldingLevels[0]} and continue."
+                )
+                break
     groups_to_aggregate.append(f"{base_group}OOA")
 
 # axes/columns for unfolding ptW
@@ -212,7 +222,7 @@ def build_graph(df, dataset):
                 pt_min=args.pt[1],
                 pt_max=args.pt[2],
                 mtw_min=mtw_min,
-                selections=unfolding_selections,
+                selections=unfolding_selections[args.unfoldingLevels[0]],
                 accept=False,
             )
         else:
@@ -225,7 +235,7 @@ def build_graph(df, dataset):
                     pt_min=args.pt[1],
                     pt_max=args.pt[2],
                     mtw_min=mtw_min,
-                    selections=unfolding_selections,
+                    selections=unfolding_selections[level],
                     select=not args.poiAsNoi,
                     accept=True,
                 )
@@ -249,6 +259,7 @@ def build_graph(df, dataset):
                 if not args.poiAsNoi:
                     axes = [*axes, *unfolding_axes[level]]
                     cols = [*cols, *unfolding_cols[level]]
+                    break
 
     if flavor == "mu":
         if not dataset.is_data:

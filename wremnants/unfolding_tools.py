@@ -48,7 +48,7 @@ def define_gen_level(df, dataset_name, gen_levels=["prefsr", "postfsr"], mode="w
         df = df.Alias("prefsrV_charge", "chargeVgen")
 
         if singlelep:
-            df = df.Alias("prefsr_mT", "mTVgen")
+            df = df.Alias("prefsrV_mT", "mTVgen")
 
         if mode[0] == "w":
             df = df.Define("prefsrLep_pt", "chargeVgen < 0 ? genl.pt() : genlanti.pt()")

@@ -331,8 +331,8 @@ def add_noi_unfolding_variations(
 ):
     poi_axes_syst = [f"_{n}" for n in poi_axes] if xnorm else poi_axes[:]
     noi_args = dict(
-        histname=gen_level if xnorm else f"{gen_level}_yieldsUnfolding",
-        name=f"{gen_level}_yieldsUnfolding",
+        histname=gen_level if xnorm else f"nominal_{gen_level}_yieldsUnfolding",
+        name=f"nominal_{gen_level}_yieldsUnfolding",
         group=f"normXsec{label}",
         passToFakes=passSystToFakes,
         systAxes=poi_axes_syst,
@@ -353,30 +353,40 @@ def add_noi_unfolding_variations(
                 h = hh.disableFlow(h, var)
         return h
 
-    def get_scalemap(axes, select={}):
+    def get_scalemap(axes, select={}, rename_axes={}):
         # make sure each gen bin variation has a similar effect in the reco space so that
         #  we have similar sensitivity to all parameters within the given up/down variations
         # FIXME: this currently doesn't work, not sure why ...
         signal_samples = datagroups.procGroups["signal_samples"]
         hScale = datagroups.getHistsForProcAndSyst(
-            signal_samples[0], "yieldsUnfolding", nominal_name="nominal"
+            signal_samples[0],
+            f"{gen_level}_yieldsUnfolding",
+            nominal_name="nominal",
         )
         hScale = hScale[{"acceptance": True, **select}]
         hScale.values(flow=True)[...] = abs(hScale.values(flow=True))
         hScale = hScale.project(*axes)
         hScale = disable_flow(hScale)
-        return hScale.sum(flow=True).value / hScale.values(flow=True)
+        for o, n in rename_axes.items():
+            hScale.axes[o]._ax.metadata["name"] = n
+        # scalemap with preserving normalization
+        hScale.values(flow=True)[...] = (
+            1.0
+            / hScale.values(flow=True)
+            * hScale.sum(flow=True).value
+            / np.prod(hScale.values(flow=True).shape)
+        )
+        return hScale
 
     if xnorm:
 
-        def make_poi_xnorm_variations(h, poi_axes, poi_axes_syst, norm, scalemap=None):
+        def make_poi_xnorm_variations(h, poi_axes, poi_axes_syst, norm, h_scale=None):
             hVar = hh.expand_hist_by_duplicate_axes(
                 h, poi_axes[::-1], poi_axes_syst[::-1]
             )
             hVar = disable_flow(hVar, axes_names=["_absYVGen", "_absEtaGen"])
-            if scalemap is not None:
-                slices = [np.newaxis if a in h.axes else slice(None) for a in hVar.axes]
-                hVar.values(flow=True)[...] = hVar.values(flow=True) * scalemap[*slices]
+            if h_scale is not None:
+                hVar = hh.multiplyHists(hVar, h_scale)
             return hh.addHists(h, hVar, scale2=norm)
 
         datagroups.addSystematic(
@@ -387,12 +397,15 @@ def add_noi_unfolding_variations(
                 poi_axes=poi_axes,
                 poi_axes_syst=poi_axes_syst,
                 norm=scale_norm,
-                # scalemap=get_scalemap(poi_axes)
+                h_scale=get_scalemap(
+                    poi_axes,
+                    rename_axes={o: n for o, n in zip(poi_axes, poi_axes_syst)},
+                ),
             ),
         )
     else:
 
-        def make_poi_variations(h, poi_axes, norm, scalemap=None):
+        def make_poi_variations(h, poi_axes, norm, h_scale=None):
             hNom = h[
                 {
                     **{ax: hist.tag.Slicer()[:: hist.sum] for ax in poi_axes},
@@ -401,11 +414,8 @@ def add_noi_unfolding_variations(
             ]
             hVar = h[{"acceptance": True}]
             hVar = disable_flow(hVar)
-            if scalemap is not None:
-                slices = [
-                    np.newaxis if a in hNom.axes else slice(None) for a in hVar.axes
-                ]
-                hVar.values(flow=True)[...] = hVar.values(flow=True) * scalemap[*slices]
+            if h_scale is not None:
+                hVar = hh.multiplyHists(hVar, h_scale)
             return hh.addHists(hNom, hVar, scale2=norm)
 
         datagroups.addSystematic(
@@ -420,6 +430,6 @@ def add_noi_unfolding_variations(
             preOpArgs=dict(
                 poi_axes=poi_axes,
                 norm=scale_norm,
-                # scalemap=get_scalemap(poi_axes),
+                h_scale=get_scalemap(poi_axes),
             ),
         )

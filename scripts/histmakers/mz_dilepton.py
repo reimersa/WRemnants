@@ -248,8 +248,13 @@ if args.unfolding:
         unfolding_cols[level] = c
         unfolding_selections[level] = s
 
-    if not args.poiAsNoi:
-        datasets = unfolding_tools.add_out_of_acceptance(datasets, group="Zmumu")
+        if not args.poiAsNoi:
+            datasets = unfolding_tools.add_out_of_acceptance(datasets, group="Zmumu")
+            if len(args.unfoldingLevels) > 1:
+                logger.warning(
+                    f"Exact unfolding with multiple gen level definitions is not possible, take first one: {args.unfoldingLevels[0]} and continue."
+                )
+                break
 
     if args.fitresult:
         noi_axes = [a for a in unfolding_axes if not a.name.endswith("acceptance")]
@@ -502,6 +507,7 @@ def build_graph(df, dataset):
                 if not args.poiAsNoi:
                     axes = [*nominal_axes, *unfolding_axes[level]]
                     cols = [*nominal_cols, *unfolding_cols[level]]
+                    break
 
     if not args.noAuxiliaryHistograms and isZ and len(auxiliary_gen_axes):
         # gen level variables before selection

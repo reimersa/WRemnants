@@ -228,10 +228,10 @@ if args.addIsoMtAxes:
     nominal_cols.extend(["transverseMass", "trigMuons_relIso0"])
 
 if args.unfolding:
-    template_wpt = (template_maxpt - template_minpt) / args.unfoldingBins[0]
+    template_wpt = (template_maxpt - template_minpt) / args.unfoldingBins[1]
     min_pt_unfolding = template_minpt + template_wpt
     max_pt_unfolding = template_maxpt - template_wpt
-    npt_unfolding = args.unfoldingBins[0] - 2
+    npt_unfolding = args.unfoldingBins[1] - 2
 
     unfolding_axes = {}
     unfolding_cols = {}
@@ -242,7 +242,7 @@ if args.unfolding:
             npt_unfolding,
             min_pt_unfolding,
             max_pt_unfolding,
-            args.unfoldingBins[1],
+            args.unfoldingBins[0],
             flow_pt=True,
             flow_eta=args.poiAsNoi,
             add_out_of_acceptance_axis=args.poiAsNoi,
@@ -253,6 +253,11 @@ if args.unfolding:
         if not args.poiAsNoi:
             datasets = unfolding_tools.add_out_of_acceptance(datasets, group="Zmumu")
             datasets = unfolding_tools.add_out_of_acceptance(datasets, group="Ztautau")
+            if len(args.unfoldingLevels) > 1:
+                logger.warning(
+                    f"Exact unfolding with multiple gen level definitions is not possible, take first one: {args.unfoldingLevels[0]} and continue."
+                )
+                break
 
         if args.fitresult:
             noi_axes = [a for a in unfolding_axes if a.name != f"{level}_acceptance"]
@@ -515,6 +520,7 @@ def build_graph(df, dataset):
                 if not args.poiAsNoi:
                     axes = [*nominal_axes, *unfolding_axes[level]]
                     cols = [*nominal_cols, *unfolding_cols[level]]
+                    break
 
     if isZ:
         df = theory_tools.define_prefsr_vars(df)

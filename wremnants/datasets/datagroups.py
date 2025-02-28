@@ -815,11 +815,8 @@ class Datagroups(object):
             logger.warning("No meta data found so no gen axes could be auto set")
             return
 
-        self.all_gen_axes = args.get("genAxes", [])
+        self.all_gen_axes = args.get("unfoldingAxes", [])
         self.all_gen_axes = [n for n in self.all_gen_axes]
-
-        if self.mode[0] == "w":
-            self.all_gen_axes = ["qGen", *self.all_gen_axes]
 
         self.gen_axes_names = (
             list(gen_axes_names) if gen_axes_names != None else self.all_gen_axes

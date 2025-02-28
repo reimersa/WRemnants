@@ -380,7 +380,7 @@ jobs:
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/setupCombine.py 
           -i $HIST_FILE -o $WREMNANTS_OUTDIR --lumiScale $LUMI_SCALE
-          --analysisMode unfolding --genAxes absEtaGen-ptGen-qGen --poiAsNoi --postfix poiAsNoi --scaleNormXsecHistYields '0.01'
+          --analysisMode unfolding --unfoldingLevel postfsr --genAxes absEtaGen-ptGen-qGen --poiAsNoi --postfix poiAsNoi --scaleNormXsecHistYields '0.01'
 
       - name: fit
         run: >-
@@ -391,10 +391,11 @@ jobs:
       - name: gen setup
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/setupCombine.py
-          -i $HIST_FILE -o $WREMNANTS_OUTDIR --lumiScale $LUMI_SCALE --baseName xnorm --filterProcGroups Wmunu
-          --analysisMode unfolding --fitvar absEtaGen-ptGen-qGen --genAxes absEtaGen-ptGen-qGen --poiAsNoi --postfix poiAsNoi --scaleNormXsecHistYields '0.01'
+          -i $HIST_FILE -o $WREMNANTS_OUTDIR --lumiScale $LUMI_SCALE --baseName postfsr --unfoldingLevel postfsr --filterProcGroups Wmunu
+          --analysisMode unfolding --fitvar absEtaGen-ptGen-qGen --genAxes absEtaGen-ptGen-qGen 
+          --poiAsNoi --postfix poiAsNoi --scaleNormXsecHistYields '0.01'
 
-      - name: gen setup
+      - name: unfold xsec
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh combinetf2/scripts/fit.py
           $WREMNANTS_OUTDIR/WMass_absEtaGen_ptGen_qGen_poiAsNoi/WMass.hdf5
@@ -402,7 +403,7 @@ jobs:
           --externalPostfit $WREMNANTS_OUTDIR/WMass_eta_pt_charge_poiAsNoi/fitresults.hdf5
           --saveHists --computeHistErrors --computeHistCov --noChi2 --project ch0 ptGen --project ch0 absEtaGen
 
-      - name: unfolded xsec
+      - name: plot xsec
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh combinetf2/scripts/plot_hists.py 
           $WREMNANTS_OUTDIR/WMass_absEtaGen_ptGen_qGen_poiAsNoi/fitresults.hdf5
@@ -420,7 +421,7 @@ jobs:
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh combinetf2/scripts/plot_hists_cov.py 
           $WREMNANTS_OUTDIR/WMass_absEtaGen_ptGen_qGen_poiAsNoi/fitresults.hdf5
-          -o $WEB_DIR/$PLOT_DIR/unfolding_mw --title CMS --subtitle Preliminary  --postfix poiAsNoi
+          -o $WEB_DIR/$PLOT_DIR/unfolding_mw --title CMS --subtitle Preliminary --postfix poiAsNoi
           --project ch0 ptGen --project ch0 absEtaGen --config utilities/styles/styles.py
       
       - name: plot xsec corrrelation
@@ -435,14 +436,14 @@ jobs:
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/setupCombine.py 
           -i $HIST_FILE -o $WREMNANTS_OUTDIR/WMass_absEtaGen_ptGen_qGen_poiAsNoi/ 
           --fitresult $WREMNANTS_OUTDIR/WMass_absEtaGen_ptGen_qGen_poiAsNoi/fitresults.hdf5
-          --fitvar ptVGen-absYVGen --postfix theoryfit --baseName xnorm --explicitSignalMCstat
+          --fitvar absEtaGen-ptGen-qGen --postfix theoryfit --baseName postfsr --explicitSignalMCstat
       
       - name: run theory fit
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh combinetf2/scripts/fit.py 
           $WREMNANTS_OUTDIR/WMass_absEtaGen_ptGen_qGen_poiAsNoi/WMass_absEtaGen_ptGen_qGen_theoryfit/WMass.hdf5
           -o $WREMNANTS_OUTDIR/WMass_absEtaGen_ptGen_qGen_poiAsNoi/WMass_absEtaGen_ptGen_qGen_theoryfit/
-          --doImpacts --globalImpacts --saveHists --computeHistErrors --chisqFit --externalCovariance -t -1 --project ch0 ptVGen --project ch0 absYVGen
+          --doImpacts --globalImpacts --saveHists --computeHistErrors --chisqFit --externalCovariance -t -1 --project ch0 ptGen --project ch0 absEtaGen
       
       - name: plot pulls & impacts
         run: >-
@@ -480,7 +481,7 @@ jobs:
       - name: lowpu w mu analysis
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/histmakers/mw_lowPU.py 
-          --dataPath $DATAPATH_LOWPU --unfolding -o $WREMNANTS_OUTDIR -j $NTHREADS --forceDefaultName
+          --dataPath $DATAPATH_LOWPU -o $WREMNANTS_OUTDIR -j $NTHREADS --forceDefaultName --unfolding --unfoldingLevels postfsr
 
       - name: lowpu w mu plot ptW
         run: >- 
@@ -510,7 +511,7 @@ jobs:
       - name: lowpu w e analysis
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/histmakers/mw_lowPU.py 
-          --dataPath $DATAPATH_LOWPU -o $WREMNANTS_OUTDIR -j $NTHREADS --forceDefaultName --flavor e --unfolding
+          --dataPath $DATAPATH_LOWPU -o $WREMNANTS_OUTDIR -j $NTHREADS --forceDefaultName --flavor e --unfolding --unfoldingLevels postfsr
 
       - name: lowpu w e plot ptW
         run: >- 
@@ -581,8 +582,8 @@ jobs:
 
       - name: lowpu z mumu analysis
         run: >-
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/histmakers/mz_lowPU.py 
-          --dataPath $DATAPATH_LOWPU --unfolding -o $WREMNANTS_OUTDIR -j $NTHREADS --forceDefaultName
+          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/histmakers/mz_lowPU.py --unfolding --unfoldingLevels postfsr
+          --dataPath $DATAPATH_LOWPU -o $WREMNANTS_OUTDIR -j $NTHREADS --forceDefaultName
 
       - name: lowpu z mumu plot ptll yll
         run: >-
@@ -601,8 +602,8 @@ jobs:
 
       - name: lowpu z ee analysis
         run: >-
-          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/histmakers/mz_lowPU.py 
-          --dataPath $DATAPATH_LOWPU --unfolding -o $WREMNANTS_OUTDIR -j $NTHREADS --forceDefaultName --flavor ee
+          scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/histmakers/mz_lowPU.py --unfolding --unfoldingLevels postfsr
+          --dataPath $DATAPATH_LOWPU -o $WREMNANTS_OUTDIR -j $NTHREADS --forceDefaultName --flavor ee
 
       - name: lowpu z ee plot ptll yll
         run: >-
@@ -645,8 +646,8 @@ jobs:
       - name: lowpu combine unfolding setup
         run: >- 
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/setupCombine.py 
-          --fakeEstimation simple --fakeSmoothingMode binned --ewUnc --analysisMode unfolding
-          --fitvar ptW-charge ptW-charge ptll ptll --genAxes ptVGen-qGen ptVGen-qGen ptVGen ptVGen
+          --fakeEstimation simple --fakeSmoothingMode binned --ewUnc --analysisMode unfolding --unfoldingLevel postfsr
+          --fitvar ptW-charge ptW-charge ptll ptll --genAxes ptVGen-qVGen ptVGen-qVGen ptVGen ptVGen
           -i $HIST_FILE_MU $HIST_FILE_E $HIST_FILE_MUMU $HIST_FILE_EE -o $COMBINED_DIR --postfix ptll 
 
       - name: lowpu combine unfolding fit 
@@ -658,8 +659,8 @@ jobs:
       - name: lowpu combine xsec setup
         run: >- 
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/setupCombine.py 
-          --ewUnc --baseName xnorm --filterProcGroups Zmumu Zee Wmunu Wenu --analysisMode unfolding
-          --fitvar ptVGen-qGen ptVGen-qGen ptVGen ptVGen --genAxes ptVGen-qGen ptVGen-qGen ptVGen ptVGen
+          --ewUnc --baseName postfsr --filterProcGroups Zmumu Zee Wmunu Wenu --analysisMode unfolding --unfoldingLevel postfsr
+          --fitvar ptVGen-qVGen ptVGen-qVGen ptVGen ptVGen --genAxes ptVGen-qVGen ptVGen-qVGen ptVGen ptVGen
           -i $HIST_FILE_MU $HIST_FILE_E $HIST_FILE_MUMU $HIST_FILE_EE -o $COMBINED_DIR --postfix ptVGen
 
       - name: lowpu combine unfolded xsec
@@ -883,49 +884,49 @@ jobs:
           submodules: 'recursive'
           lfs: 'true'
 
-      - name: dilepton ptll-yll analysis
+      - name: ptll-yll analysis
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/histmakers/mz_dilepton.py --dataPath $DATAPATH 
           -o $WREMNANTS_OUTDIR -j $NTHREADS --maxFiles $MAX_FILES --axes ptll yll --forceDefaultName --unfolding --poiAsNoi
 
-      - name: dilepton combine alphaS setup
+      - name: combine alphaS setup
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/setupCombine.py 
           -i $HIST_FILE --fitvar ptll-yll --lumiScale $LUMI_SCALE --realData -o $WREMNANTS_OUTDIR --fitAlphaS
 
-      - name: dilepton combinetf2 alphaS fit
+      - name: combinetf2 alphaS fit
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh combinetf2/scripts/fit.py 
           $WREMNANTS_OUTDIR/ZMassDilepton_ptll_yll/ZMassDilepton.hdf5
           -t 0 --binByBinStat --computeHistErrors --saveHists --saveHistsPerProcess --doImpacts
           -o '$WREMNANTS_OUTDIR/ZMassDilepton_ptll_yll/'
 
-      - name: dilepton alphaS impacts
+      - name: alphaS impacts
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh combinetf2/scripts/plot_pullsAndImpacts.py
           ${WREMNANTS_OUTDIR}/ZMassDilepton_ptll_yll/fitresults.hdf5 --title CMS --subtitle Preliminary
           --showNumbers --pullrange '2.1' --config utilities/styles/styles.py --oneSidedImpacts --grouping max 
           -o $WEB_DIR/$PLOT_DIR --otherExtensions pdf png -n 50 --scaleImpacts 1.5 
 
-      - name: dilepton unfolding setup
+      - name: setup
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/setupCombine.py 
           -i $HIST_FILE -o $WREMNANTS_OUTDIR --fitvar ptll-yll --lumiScale $LUMI_SCALE
-          --analysisMode unfolding --genAxes ptVGen-absYVGen --poiAsNoi --postfix poiAsNoi --scaleNormXsecHistYields '0.01'
+          --analysisMode unfolding --unfoldingLevel prefsr --genAxes ptVGen-absYVGen --poiAsNoi --postfix poiAsNoi --scaleNormXsecHistYields '0.01'
 
-      - name: dilepton unfolding fit
+      - name: unfolding fit
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh combinetf2/scripts/fit.py 
           $WREMNANTS_OUTDIR/ZMassDilepton_ptll_yll_poiAsNoi/ZMassDilepton.hdf5
           -o $WREMNANTS_OUTDIR/ZMassDilepton_ptll_yll_poiAsNoi/ -t -1 --binByBinStat
 
-      - name: dilepton gen setup
+      - name: gen setup
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/setupCombine.py
-          -i $HIST_FILE -o $WREMNANTS_OUTDIR --fitvar ptVGen-absYVGen --lumiScale $LUMI_SCALE --baseName xnorm --filterProcGroups Zmumu
-          --analysisMode unfolding --genAxes ptVGen-absYVGen --poiAsNoi --postfix poiAsNoi --scaleNormXsecHistYields '0.01'
+          -i $HIST_FILE -o $WREMNANTS_OUTDIR --fitvar ptVGen-absYVGen --lumiScale $LUMI_SCALE --baseName prefsr --filterProcGroups Zmumu
+          --analysisMode unfolding --unfoldingLevel prefsr --genAxes ptVGen-absYVGen --poiAsNoi --postfix poiAsNoi --scaleNormXsecHistYields '0.01'
 
-      - name: dilepton gen setup
+      - name: unfold xsec
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh combinetf2/scripts/fit.py
           $WREMNANTS_OUTDIR/ZMassDilepton_ptVGen_absYVGen_poiAsNoi/ZMassDilepton.hdf5
@@ -933,32 +934,32 @@ jobs:
           --externalPostfit $WREMNANTS_OUTDIR/ZMassDilepton_ptll_yll_poiAsNoi/fitresults.hdf5
           --saveHists --computeHistErrors --computeHistCov --noChi2 --project ch0 ptVGen --project ch0 absYVGen
 
-      - name: dilepton cbine unfolded xsec
+      - name: plot xsec
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh combinetf2/scripts/plot_hists.py 
           $WREMNANTS_OUTDIR/ZMassDilepton_ptVGen_absYVGen_poiAsNoi/fitresults.hdf5
-          -o $WEB_DIR/$PLOT_DIR/unfolding --postfix poiAsNoi --extraTextLoc '0.05' '0.7' --legCols 1 --project ch0 ptVGen --project ch0 absYVGen --yscale '1.2'
+          -o $WEB_DIR/$PLOT_DIR/unfolding_dilepton --postfix poiAsNoi --extraTextLoc '0.05' '0.7' --legCols 1 --project ch0 ptVGen --project ch0 absYVGen --yscale '1.2'
           --title CMS --subtitle Preliminary --config 'utilities/styles/styles.py' --rrange '0.8' '1.2' --unfoldedXsec
 
-      - name: dilepton plot xsec uncertainties
+      - name: plot xsec uncertainties
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh combinetf2/scripts/plot_hists_uncertainties.py 
           $WREMNANTS_OUTDIR/ZMassDilepton_ptVGen_absYVGen_poiAsNoi/fitresults.hdf5
-          -o $WEB_DIR/$PLOT_DIR/unfolding --postfix poiAsNoi --extraTextLoc '0.05' '0.7' --legCols 1 --project ch0 ptVGen --project ch0 absYVGen --yscale '1.2'
+          -o $WEB_DIR/$PLOT_DIR/unfolding_dilepton --postfix poiAsNoi --extraTextLoc '0.05' '0.7' --legCols 1 --project ch0 ptVGen --project ch0 absYVGen --yscale '1.2'
           --title CMS --subtitle Preliminary --config utilities/styles/styles.py --grouping max --legCols 2
 
       - name: plot xsec covariance
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh combinetf2/scripts/plot_hists_cov.py 
           $WREMNANTS_OUTDIR/ZMassDilepton_ptVGen_absYVGen_poiAsNoi/fitresults.hdf5
-          -o $WEB_DIR/$PLOT_DIR/unfolding --title CMS --subtitle Preliminary  --postfix poiAsNoi
+          -o $WEB_DIR/$PLOT_DIR/unfolding_dilepton --title CMS --subtitle Preliminary  --postfix poiAsNoi
           --project ch0 ptVGen --project ch0 absYVGen --config utilities/styles/styles.py
       
       - name: plot xsec corrrelation
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh combinetf2/scripts/plot_hists_cov.py 
           $WREMNANTS_OUTDIR/ZMassDilepton_ptVGen_absYVGen_poiAsNoi/fitresults.hdf5
-          -o $WEB_DIR/$PLOT_DIR/unfolding --title CMS --subtitle Preliminary  --postfix poiAsNoi
+          -o $WEB_DIR/$PLOT_DIR/unfolding_dilepton --title CMS --subtitle Preliminary  --postfix poiAsNoi
           --project ch0 ptVGen --project ch0 absYVGen --config utilities/styles/styles.py --correlation
       
       - name: setup theory-fit tensor
@@ -966,7 +967,7 @@ jobs:
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/setupCombine.py 
           -i $HIST_FILE -o $WREMNANTS_OUTDIR/ZMassDilepton_ptVGen_absYVGen_poiAsNoi/ 
           --fitresult $WREMNANTS_OUTDIR/ZMassDilepton_ptVGen_absYVGen_poiAsNoi/fitresults.hdf5 --fitAlphaS
-          --fitvar ptVGen-absYVGen --postfix theoryfit --baseName xnorm --explicitSignalMCstat
+          --fitvar ptVGen-absYVGen --postfix theoryfit --baseName prefsr --explicitSignalMCstat
       
       - name: run theory fit
         run: >-
@@ -980,7 +981,7 @@ jobs:
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh combinetf2/scripts/plot_pullsAndImpacts.py 
           $WREMNANTS_OUTDIR/ZMassDilepton_ptVGen_absYVGen_poiAsNoi/ZMassDilepton_ptVGen_absYVGen_theoryfit/fitresults.hdf5
           --grouping max --config 'utilities/styles/styles.py' --postfix poiAsNoi
-          -o $WEB_DIR/$PLOT_DIR/unfolding -n 50 --otherExtensions pdf png --showNumbers --oneSidedImpacts -s absimpact --scale 1.5
+          -o $WEB_DIR/$PLOT_DIR/unfolding_dilepton -n 50 --otherExtensions pdf png --showNumbers --oneSidedImpacts -s absimpact --scale 1.5
 
   dilepton-unfolding:
     # The type of runner that the job will run on
@@ -1011,35 +1012,35 @@ jobs:
           submodules: 'recursive'
           lfs: 'true'
 
-      - name: dilepton analysis
+      - name: analysis
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/histmakers/mz_dilepton.py --dataPath $DATAPATH
           -o $WREMNANTS_OUTDIR -j $NTHREADS --maxFiles $MAX_FILES --axes ptll yll --forceDefaultName --unfolding --postfix unfolding
 
-      - name: dilepton plot response matrix
+      - name: plot response matrix
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/plotting/response_matrix.py 
-          --axes ptll-ptVGen --procFilters Zmumu -p mz -o $WEB_DIR -f $PLOT_DIR/unfolding_dilepton $HIST_FILE
+          --axes ptll-ptVGen --procFilters Zmumu -p mz -o $WEB_DIR -f $PLOT_DIR/unfolding_dilepton $HIST_FILE --postfix unfolding 
 
-      - name: dilepton unfolding setup
+      - name: unfolding setup
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/setupCombine.py 
           -i $HIST_FILE -o $WREMNANTS_OUTDIR --fitvar ptll-yll --lumiScale $LUMI_SCALE
-          --analysisMode unfolding --genAxes ptVGen-absYVGen --postfix unfolding
+          --analysisMode unfolding --unfoldingLevel prefsr --genAxes ptVGen-absYVGen --postfix unfolding
 
-      - name: dilepton unfolding fit
+      - name: unfolding fit
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh combinetf2/scripts/fit.py 
           $WREMNANTS_OUTDIR/ZMassDilepton_ptll_yll_unfolding/ZMassDilepton.hdf5
           -o $WREMNANTS_OUTDIR/ZMassDilepton_ptll_yll_unfolding/ -t -1 --binByBinStat
 
-      - name: dilepton gen setup
+      - name: gen setup
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/setupCombine.py
-          -i $HIST_FILE -o $WREMNANTS_OUTDIR --fitvar ptVGen-absYVGen --lumiScale $LUMI_SCALE --baseName xnorm --filterProcGroups Zmumu
-          --analysisMode unfolding --genAxes ptVGen-absYVGen --postfix unfolding
+          -i $HIST_FILE -o $WREMNANTS_OUTDIR --fitvar ptVGen-absYVGen --lumiScale $LUMI_SCALE --baseName prefsr --filterProcGroups Zmumu
+          --analysisMode unfolding --unfoldingLevel prefsr --genAxes ptVGen-absYVGen --postfix unfolding
 
-      - name: dilepton gen fit
+      - name: gen fit
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh combinetf2/scripts/fit.py
           $WREMNANTS_OUTDIR/ZMassDilepton_ptVGen_absYVGen_unfolding/ZMassDilepton.hdf5
@@ -1047,20 +1048,20 @@ jobs:
           --externalPostfit $WREMNANTS_OUTDIR/ZMassDilepton_ptll_yll_unfolding/fitresults.hdf5
           --saveHists --computeHistErrors --computeHistCov --noChi2 --project ch0 ptVGen --project ch0 absYVGen
 
-      - name: dilepton unfolding plot pulls 
+      - name: unfolding plot pulls 
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh combinetf2/scripts/plot_pullsAndImpacts.py 
           $WREMNANTS_OUTDIR/ZMassDilepton_ptll_yll_unfolding/fitresults.hdf5 -m ungrouped --sortDescending -s constraint --debug --noImpacts
-          -o $WEB_DIR/$PLOT_DIR/unfolding_dilepton -n 50 --otherExtensions png pdf
+          -o $WEB_DIR/$PLOT_DIR/unfolding_dilepton --postfix unfolding -n 50 --otherExtensions png pdf
 
-      - name: dilepton plot xsec
+      - name: plot xsec
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh combinetf2/scripts/plot_hists.py 
           $WREMNANTS_OUTDIR/ZMassDilepton_ptVGen_absYVGen_unfolding/fitresults.hdf5
           -o $WEB_DIR/$PLOT_DIR/unfolding_dilepton --postfix unfolding --extraTextLoc '0.05' '0.7' --legCols 1 --project ch0 ptVGen --project ch0 absYVGen --yscale '1.2'
           --title CMS --subtitle Preliminary --config 'utilities/styles/styles.py' --rrange '0.8' '1.2' --unfoldedXsec
 
-      - name: dilepton plot xsec uncertainties
+      - name: plot xsec uncertainties
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh combinetf2/scripts/plot_hists_uncertainties.py 
           $WREMNANTS_OUTDIR/ZMassDilepton_ptVGen_absYVGen_unfolding/fitresults.hdf5
@@ -1071,22 +1072,22 @@ jobs:
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh combinetf2/scripts/plot_hists_cov.py 
           $WREMNANTS_OUTDIR/ZMassDilepton_ptVGen_absYVGen_unfolding/fitresults.hdf5
-          -o $WEB_DIR/$PLOT_DIR/unfolding_dilepton --title CMS --subtitle Preliminary
+          -o $WEB_DIR/$PLOT_DIR/unfolding_dilepton --postfix unfolding --title CMS --subtitle Preliminary
           --project ch0 ptVGen --project ch0 absYVGen --config utilities/styles/styles.py
       
       - name: plot xsec corrrelation
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh combinetf2/scripts/plot_hists_cov.py 
           $WREMNANTS_OUTDIR/ZMassDilepton_ptVGen_absYVGen_unfolding/fitresults.hdf5
-          -o $WEB_DIR/$PLOT_DIR/unfolding_dilepton --title CMS --subtitle Preliminary 
+          -o $WEB_DIR/$PLOT_DIR/unfolding_dilepton --postfix unfolding --title CMS --subtitle Preliminary 
           --project ch0 ptVGen --project ch0 absYVGen --config utilities/styles/styles.py --correlation
       
       - name: setup theory-fit tensor
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/setupCombine.py 
-          -i $HIST_FILE -o $WREMNANTS_OUTDIR/ZMassDilepton_ptVGen_absYVGen_poiAsNoi/ 
+          -i $HIST_FILE -o $WREMNANTS_OUTDIR/ZMassDilepton_ptVGen_absYVGen_unfolding/ 
           --fitresult $WREMNANTS_OUTDIR/ZMassDilepton_ptVGen_absYVGen_unfolding/fitresults.hdf5 --fitAlphaS
-          --fitvar ptVGen-absYVGen --postfix theoryfit --baseName xnorm --explicitSignalMCstat
+          --fitvar ptVGen-absYVGen --postfix theoryfit --baseName prefsr --explicitSignalMCstat
       
       - name: run theory fit
         run: >-
@@ -1099,7 +1100,7 @@ jobs:
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh combinetf2/scripts/plot_pullsAndImpacts.py 
           $WREMNANTS_OUTDIR/ZMassDilepton_ptVGen_absYVGen_unfolding/ZMassDilepton_ptVGen_absYVGen_theoryfit/fitresults.hdf5
-          --grouping max --config 'utilities/styles/styles.py' 
+          --grouping max --config 'utilities/styles/styles.py' --postfix unfolding
           -o $WEB_DIR/$PLOT_DIR/unfolding_dilepton -n 50 --otherExtensions pdf png --showNumbers --oneSidedImpacts -s absimpact --scale 1.5
 
 
@@ -1251,7 +1252,7 @@ jobs:
 
   copy-clean:
     runs-on: [self-hosted, linux, x64]
-    needs: [setenv, w-analysis, w-fit, w-plotting, lowpu-w, lowpu-z, lowpu-combined-unfolding, wlike, wlike-plotting, dilepton-mll, dilepton, dilepton-plotting, gen, combined-fit]
+    needs: [setenv, w-analysis, w-fit, w-plotting, lowpu-w, lowpu-z, lowpu-combined-unfolding, wlike, wlike-plotting, dilepton-mll, dilepton, dilepton-unfolding, dilepton-plotting, gen, combined-fit]
     if: always() 
     steps:
       - env:

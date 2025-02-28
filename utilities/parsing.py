@@ -568,12 +568,12 @@ def common_parser(analysis_label=""):
 
         # specific for unfolding
         axmap = {
-            "w_lowpu": ["ptVGen"],
-            "w_mass": ["ptGen", "absEtaGen"],
+            "w_lowpu": ["ptVGen", "qVGen"],
+            "w_mass": ["absEtaGen", "ptGen", "qGen"],
             "z_dilepton": ["ptVGen", "absYVGen"],
+            "z_lowpu": ["ptVGen"],
         }
-        axmap["z_lowpu"] = axmap["w_lowpu"]
-        axmap["z_wlike"] = ["qGen", *axmap["w_mass"]]
+        axmap["z_wlike"] = axmap["w_mass"]
         if analysis_label not in axmap:
             raise ValueError(f"Unknown analysis {analysis_label}!")
         parser.add_argument(
@@ -581,14 +581,22 @@ def common_parser(analysis_label=""):
             type=str,
             nargs="+",
             default=axmap[analysis_label],
-            choices=["qGen", "ptGen", "absEtaGen", "ptVGen", "absYVGen", "helicitySig"],
+            choices=[
+                "qGen",
+                "ptGen",
+                "absEtaGen",
+                "qVGen",
+                "ptVGen",
+                "absYVGen",
+                "helicitySig",
+            ],
             help="Generator level variable",
         )
         parser.add_argument(
             "--unfoldingBins",
             type=int,
             nargs="+",
-            default=[17, 0] if "wlike" in analysis_label else [15, 0],
+            default=[0, 17] if "wlike" in analysis_label else [0, 15],
             help="Number of generator level bins",
         )
         parser.add_argument(

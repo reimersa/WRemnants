@@ -419,10 +419,6 @@ for g_name, group in datagroups.items():
                 )
                 xbins = hist2d.axes[0].edges[int(nbins / 2) :]
             else:
-                import pdb
-
-                pdb.set_trace()
-
                 hist2d = histo[select].project(*axes)
                 if len(hist2d.axes[0]) == len(hist2d.axes[1]) + 1:
                     hist2d = hh.disableFlow(hist2d, hist2d.axes[0].name)
