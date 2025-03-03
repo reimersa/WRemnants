@@ -257,10 +257,7 @@ if args.unfolding:
                 break
 
     if args.fitresult:
-        noi_axes = [a for a in unfolding_axes if not a.name.endswith("acceptance")]
-        unfolding_corr_helper = unfolding_tools.reweight_to_fitresult(
-            args.fitresult, noi_axes, process="Z", poi_type="nois"
-        )
+        unfolding_corr_helper = unfolding_tools.reweight_to_fitresult(args.fitresult)
 
 for a in args.axes:
     if a not in all_axes.keys():

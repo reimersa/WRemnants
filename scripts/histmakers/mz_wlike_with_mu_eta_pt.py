@@ -242,8 +242,7 @@ if args.unfolding:
             npt_unfolding,
             min_pt_unfolding,
             max_pt_unfolding,
-            args.unfoldingBins[0],
-            flow_pt=True,
+            args.unfoldingBins[0] if "absEtaGen" in args.unfoldingAxes else None,
             flow_eta=args.poiAsNoi,
             add_out_of_acceptance_axis=args.poiAsNoi,
         )
@@ -259,12 +258,8 @@ if args.unfolding:
                 )
                 break
 
-        if args.fitresult:
-            noi_axes = [a for a in unfolding_axes if a.name != f"{level}_acceptance"]
-            unfolding_corr_helper = unfolding_tools.reweight_to_fitresult(
-                args.fitresult, noi_axes, process="Z", poi_type="nois"
-            )
-
+    if args.fitresult:
+        unfolding_corr_helper = unfolding_tools.reweight_to_fitresult(args.fitresult)
 
 if args.theoryAgnostic:
     theoryAgnostic_axes, theoryAgnostic_cols = differential.get_theoryAgnostic_axes(
@@ -481,16 +476,6 @@ def build_graph(df, dataset):
                 df, mode=analysis_label, accept=False, **cutsmap
             )
         else:
-            if args.fitresult:
-                logger.debug("Apply reweighting based on unfolded result")
-                df = df.Define(
-                    "unfoldingWeight_tensor",
-                    unfolding_corr_helper,
-                    [*unfolding_corr_helper.hist.axes.name[:-1], "unity"],
-                )
-                df = df.Define(
-                    "central_weight", "acceptance ? unfoldingWeight_tensor(0) : unity"
-                )
             for level in args.unfoldingLevels:
                 df = unfolding_tools.select_fiducial_space(
                     df,
@@ -501,6 +486,19 @@ def build_graph(df, dataset):
                     **cutsmap,
                 )
 
+            if args.fitresult:
+                logger.debug("Apply reweighting based on unfolded result")
+                df = df.Define(
+                    "unfoldingWeight_tensor",
+                    unfolding_corr_helper,
+                    [*unfolding_corr_helper.hist.axes.name[:-1], "unity"],
+                )
+                df = df.Define(
+                    "central_weight",
+                    f"{unfolding_corr_helper.level}_acceptance ? unfoldingWeight_tensor(0) : unity",
+                )
+
+            for level in args.unfoldingLevels:
                 if args.poiAsNoi:
                     df_xnorm = df.Filter(f"{level}_acceptance")
                 else:

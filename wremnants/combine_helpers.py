@@ -176,6 +176,8 @@ def add_explicit_BinByBinStat(
         integration_var = {
             a: hist.sum for a in datagroups.gen_axes_names
         }  # integrate out gen axes for bin by bin uncertainties
+        integration_var["acceptance"] = hist.sum
+
         datagroups.addSystematic(
             **info,
             nominalName=source[0],
@@ -183,21 +185,13 @@ def add_explicit_BinByBinStat(
             systAxes=recovar,
             actionRequiresNomi=True,
             action=lambda hv, hn: hh.addHists(
-                hn[{"count": hist.sum, "acceptance": hist.sum}].project(
-                    *datagroups.gen_axes_names
-                ),
+                hn.project(*datagroups.gen_axes_names),
                 action_sel(hv, {"acceptance": True}).project(
                     *recovar, *datagroups.gen_axes_names
                 ),
                 scale2=(
-                    np.sqrt(
-                        action_sel(
-                            hv, {"acceptance": hist.sum, **integration_var}
-                        ).variances(flow=True)
-                    )
-                    / action_sel(
-                        hv, {"acceptance": hist.sum, **integration_var}
-                    ).values(flow=True)
+                    np.sqrt(action_sel(hv, integration_var).variances(flow=True))
+                    / action_sel(hv, integration_var).values(flow=True)
                 )[..., *[np.newaxis] * len(datagroups.gen_axes_names)],
             ),
         )

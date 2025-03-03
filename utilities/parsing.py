@@ -547,6 +547,11 @@ def common_parser(analysis_label=""):
             help="Make histogram to do the POIs as NOIs trick (some postprocessing will happen later in CardTool.py)",
         )
         parser.add_argument(
+            "--xnormOnly",
+            action="store_true",
+            help="Only store xnorm histograms (e.g. for re-interpretation of gen events)",
+        )
+        parser.add_argument(
             "--unfolding",
             action="store_true",
             help="Add gen axes (exact) and/or gen histograms needed for unfolding, depending if --poiAsNoi is specified or not",

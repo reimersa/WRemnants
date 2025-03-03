@@ -106,7 +106,6 @@ def make_subparsers(parser):
         )
 
         parser = parsing.set_parser_default(parser, "massVariation", 10)
-        parser = parsing.set_parser_default(parser, "hdf5", True)
 
     return parser
 
@@ -138,7 +137,7 @@ def make_parser(parser=None):
     parser.add_argument(
         "--sparse",
         action="store_true",
-        help="Write out datacard in sparse mode (only for when using hdf5)",
+        help="Write out datacard in sparse mode",
     )
     parser.add_argument(
         "--excludeProcGroups",
@@ -746,6 +745,7 @@ def setup(
     fitvar,
     genvar=None,
     channel="ch0",
+    lumi=None,
     fitresult_data=None,
 ):
     xnorm = inputBaseName in ["xnorm", "prefsr", "postfsr"]
@@ -779,6 +779,9 @@ def setup(
     datagroups = Datagroups(
         inputFile, excludeGroups=excludeGroup, filterGroups=filterGroup
     )
+    if lumi is not None:
+        logger.info(f"Set integrated luminosity to: {lumi}/fb")
+        datagroups.lumi = lumi
 
     datagroups.fit_axes = fitvar
     datagroups.channel = channel
@@ -877,7 +880,7 @@ def setup(
     if xnorm:
         datagroups.select_xnorm_groups(base_group, inputBaseName)
 
-    if xnorm or (isUnfolding and not isPoiAsNoi):
+    if xnorm or isUnfolding or isPoiAsNoi:
         datagroups.setGenAxes(
             sum_gen_axes=[a for a in datagroups.gen_axes_names if a not in fitvar],
             base_group=base_group,
@@ -891,6 +894,7 @@ def setup(
         datagroups.setGenAxes(
             sum_gen_axes=[a for a in datagroups.gen_axes_names if a not in poi_axes],
             base_group=base_group,
+            histToReadAxes=args.unfoldingLevel if isUnfolding else inputBaseName,
         )
         # FIXME: temporary customization of signal and out-of-acceptance process names for theory agnostic with POI as NOI
         # There might be a better way to do it more homogeneously with the rest.
@@ -1302,7 +1306,14 @@ def setup(
             # use variations from reco histogram and apply them to xnorm
             source = ("nominal", f"{inputBaseName}_yieldsUnfolding")
             # need to find the reco variables that correspond to the reco fit, reco fit must be done with variables in same order as gen bins
-            gen2reco = {"qGen": "charge", "ptGen": "pt", "absEtaGen": "eta"}
+            gen2reco = {
+                "qGen": "charge",
+                "ptGen": "pt",
+                "absEtaGen": "eta",
+                "qVGen": "charge",
+                "ptVGen": "ptll",
+                "absYVGen": "yll",
+            }
             recovar = [gen2reco[v] for v in fitvar]
         else:
             recovar = fitvar
@@ -2295,7 +2306,9 @@ if __name__ == "__main__":
             logger.warning(
                 "Theoryfit for more than one channels is currently experimental"
             )
-        fitresult, meta = combinetf2.io_tools.get_fitresult(args.fitresult, meta=True)
+        fitresult, fitresult_meta = combinetf2.io_tools.get_fitresult(
+            args.fitresult, meta=True
+        )
         fitresult_data_dict, fitresult_data_cov = (
             combinetf2.io_tools.get_fitresult_data(fitresult)
         )
@@ -2323,6 +2336,13 @@ if __name__ == "__main__":
 
         channel = f"ch{i}"
 
+        if args.fitresult:
+            lumi = fitresult_meta["meta_info_input"]["channel_info"][channel]["lumi"]
+            fitresult_data = fitresult_data_dict[channel].get()
+        else:
+            lumi = None
+            fitresult_data = None
+
         datagroups = setup(
             writer,
             args,
@@ -2332,9 +2352,8 @@ if __name__ == "__main__":
             fitvar,
             genvar,
             channel=channel,
-            fitresult_data=(
-                fitresult_data_dict[channel].get() if args.fitresult else None
-            ),
+            lumi=lumi,
+            fitresult_data=fitresult_data,
         )
 
         outnames.append(
@@ -2361,7 +2380,7 @@ if __name__ == "__main__":
         unique_names = list(dict.fromkeys([o[1] for o in outnames]))
         outfolder = f"{args.outfolder}/Combination_{''.join(unique_names)}{dir_append}/"
         outfile = "Combination"
-    logger.info(f"Writing HDF5 output to {outfile}")
+    logger.info(f"Writing output to {outfile}")
 
     writer.write(outfolder=outfolder, outfilename=outfile, args=args)
 

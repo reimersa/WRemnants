@@ -141,7 +141,6 @@ parser.add_argument(
     action="store_true",
     help="When not applying muon scale corrections (--muonCorrData none / --muonCorrMC none), require at list that the CVH corrected variables are valid",
 )
-#
 
 args = parser.parse_args()
 
@@ -394,12 +393,6 @@ if args.unfolding:
         unfolding_axes[level] = a
         unfolding_cols[level] = c
 
-        if args.fitresult:
-            noi_axes = [a for a in unfolding_axes if a.name != f"{level}_acceptance"]
-            unfolding_corr_helper = unfolding_tools.reweight_to_fitresult(
-                args.fitresult, noi_axes, process="W", poi_type="nois"
-            )
-
         if not args.poiAsNoi:
             datasets = unfolding_tools.add_out_of_acceptance(datasets, group="Wmunu")
             # datasets = unfolding_tools.add_out_of_acceptance(datasets, group = "Wtaunu")
@@ -409,6 +402,8 @@ if args.unfolding:
                 )
                 break
 
+    if args.fitresult:
+        unfolding_corr_helper = unfolding_tools.reweight_to_fitresult(args.fitresult)
 
 if args.theoryAgnostic:
     theoryAgnostic_axes, theoryAgnostic_cols = differential.get_theoryAgnostic_axes(
@@ -774,19 +769,7 @@ def build_graph(df, dataset):
                 **cutsmap,
             )
         else:
-            if args.fitresult:
-                logger.debug("Apply reweighting based on unfolded result")
-                df = df.Define(
-                    "unfoldingWeight_tensor",
-                    unfolding_corr_helper,
-                    [*unfolding_corr_helper.hist.axes.name[:-1], "unity"],
-                )
-                df = df.Define(
-                    "central_weight", "acceptance ? unfoldingWeight_tensor(0) : unity"
-                )
-
             for level in args.unfoldingLevels:
-
                 df = unfolding_tools.select_fiducial_space(
                     df,
                     level,
@@ -796,6 +779,19 @@ def build_graph(df, dataset):
                     **cutsmap,
                 )
 
+            if args.fitresult:
+                logger.debug("Apply reweighting based on unfolded result")
+                df = df.Define(
+                    "unfoldingWeight_tensor",
+                    unfolding_corr_helper,
+                    [*unfolding_corr_helper.hist.axes.name[:-1], "unity"],
+                )
+                df = df.Define(
+                    "central_weight",
+                    f"{unfolding_corr_helper.level}_acceptance ? unfoldingWeight_tensor(0) : unity",
+                )
+
+            for level in args.unfoldingLevels:
                 if args.poiAsNoi:
                     df_xnorm = df.Filter(f"{level}_acceptance")
                 else:
@@ -872,6 +868,9 @@ def build_graph(df, dataset):
                         theoryAgnostic_axes,
                         theoryAgnostic_cols,
                     )
+
+    if args.xnormOnly:
+        return results, weightsum
 
     if not args.makeMCefficiency and not args.noTrigger:
         # remove trigger, it will be part of the efficiency selection for passing trigger

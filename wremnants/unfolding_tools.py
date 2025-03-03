@@ -1,10 +1,9 @@
 from copy import deepcopy
 
 import hist
-import numpy as np
 
 from utilities import common
-from wremnants import syst_tools, theory_corrections, theory_tools, theoryAgnostic_tools
+from wremnants import syst_tools, theory_tools, theoryAgnostic_tools
 from wums import logging
 
 logger = logging.child_logger(__name__)
@@ -78,7 +77,8 @@ def define_gen_level(df, dataset_name, gen_levels=["prefsr", "postfsr"], mode="w
 
         if singlelep:
             df = df.Alias("postfsrV_mT", "postfsrMT")
-        else:
+
+        if mode[0] == "z":
             df = df.Alias("postfsrV_mass", "postfsrMV")
             df = df.Alias("postfsrV_absY", "postfsrabsYV")
 
@@ -237,53 +237,41 @@ def add_xnorm_histograms(
     )
 
 
-def reweight_to_fitresult(
-    fitresult, axes, poi_type="nois", cme=13, process="Z", expected=False, flow=True
-):
-    # requires fitresult generated from 'fitresult_pois_to_hist.py'
-    histname = "hist_" + "_".join([a.name for a in axes])
-    if expected:
-        histname += "_expected"
+def reweight_to_fitresult(filename, result=None, channel="ch0", flow=True):
+    import wums.boostHistHelpers as hh
+    from combinetf2.io_tools import get_fitresult
 
-    import pickle
+    fitresult, meta = get_fitresult(filename, result, meta=True)
 
-    with open(fitresult, "rb") as f:
-        r = pickle.load(f)
-        if process == "W":
-            corrh_0 = r["results"][poi_type][f"chan_{str(cme).replace('.','p')}TeV"][
-                "W_qGen0"
-            ][histname]
-            corrh_1 = r["results"][poi_type][f"chan_{str(cme).replace('.','p')}TeV"][
-                "W_qGen1"
-            ][histname]
+    hPrefit = fitresult["channels"][channel][f"hist_prefit_inclusive"].get()
+    hPostfit = fitresult["channels"][channel][f"hist_postfit_inclusive"].get()
+
+    hRatio = hh.divideHists(hPostfit, hPrefit)
+
+    # get the gen level the unfolding was performed for
+    level = meta["meta_info_input"]["meta_info"]["args"]["unfoldingLevel"]
+
+    axes = []
+    for ax in hRatio.axes:
+        name = ax.name
+        if "VGen" in ax.name:
+            suffix = "V"
+            var = ax.name.replace("VGen", "")
         else:
-            corrh = r["results"][poi_type][f"chan_{str(cme).replace('.','p')}TeV"][
-                process
-            ][histname]
+            suffix = "Lep"
+            var = ax.name.replace("Gen", "")
+        if var == "q":
+            var = "charge"
 
-    slices = [slice(None) for i in range(len(axes))]
+        ax._ax.metadata["name"] = f"{level}{suffix}_{var}"
+        axes.append(ax)
 
-    if "qGen" not in [a.name for a in axes]:
-        # CorrectionsTensor needs charge axis
-        if process == "Z":
-            axes.append(hist.axis.Regular(1, -1, 1, name="chargeVGen", flow=False))
-            slices.append(np.newaxis)
-            values = corrh.values(flow=flow)
-        elif process == "W":
-            axes.append(hist.axis.Regular(2, -2, 2, name="chargeVGen", flow=False))
-            slices.append(slice(None))
-            values = np.stack(
-                [corrh_0.values(flow=flow), corrh_1.values(flow=flow)], axis=-1
-            )
-
-    ch = hist.Hist(*axes, hist.axis.Regular(1, 0, 1, name="vars", flow=False))
-    slices.append(np.newaxis)
-
-    ch = theory_corrections.set_corr_ratio_flow(ch)
-    ch.values(flow=flow)[...] = values[*slices]
-
-    logger.debug(f"corrections from fitresult: {values}")
+    hCorr = hist.Hist(*axes, hist.axis.Regular(1, 0, 1, name="vars", flow=False))
+    hCorr.values(flow=flow)[...] = hRatio.values(flow=flow)[..., None]
 
     from wremnants.correctionsTensor_helper import makeCorrectionsTensor
 
-    return makeCorrectionsTensor(ch)
+    corr_helper = makeCorrectionsTensor(hCorr)
+    corr_helper.level = level
+
+    return corr_helper
