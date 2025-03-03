@@ -97,14 +97,6 @@ genDataDict = {
         "xsec": xsec_DYJetsToMuMu,
         "group": "Zmumu",
     },
-    "WplusmunuPostVFP": {
-        "filepaths": [
-            "{BASE_PATH}/y2017/WplusJetsToMuNu_H2ErratumFix_TuneCP5_13TeV-powhegMiNNLO-pythia8-photos/NanoV9MC2017_{NANO_PROD_TAG}",
-            "{BASE_PATH}/y2018/WplusJetsToMuNu_H2ErratumFix_TuneCP5_13TeV-powhegMiNNLO-pythia8-photos/NanoV9MC2018_{NANO_PROD_TAG}",
-        ],
-        "xsec": xsec_WplusJetsToMuNu,
-        "group": "Wmunu",
-    },
     "Wplusmunu_horace-lo-photos": {
         "filepaths": [
             "{BASE_PATH}/WplusJetsToMuNu_LO_TuneCP5_13TeV-horace-pythia8-photospp"
@@ -165,14 +157,6 @@ genDataDict = {
             "{BASE_PATH}/WplusCharmToMuNu_TuneCP5_13TeV-powheg-pythia8-photos"
         ],
         "xsec": xsec_WplusCharmToMuNu,
-        "group": "Wmunu",
-    },
-    "WminusmunuPostVFP": {
-        "filepaths": [
-            "{BASE_PATH}/y2017/WminusJetsToMuNu_H2ErratumFix_TuneCP5_13TeV-powhegMiNNLO-pythia8-photos/NanoV9MC2017_{NANO_PROD_TAG}",
-            "{BASE_PATH}/y2018/WminusJetsToMuNu_H2ErratumFix_TuneCP5_13TeV-powhegMiNNLO-pythia8-photos/NanoV9MC2018_{NANO_PROD_TAG}",
-        ],
-        "xsec": xsec_WminusJetsToMuNu,
         "group": "Wmunu",
     },
     "Wminusmunu_horace-lo-photos": {

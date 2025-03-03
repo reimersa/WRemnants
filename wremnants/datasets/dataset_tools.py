@@ -281,7 +281,9 @@ def getDatasets(
             continue
 
         if sample in genDataDict:
-            base_path = base_path.replace("NanoAOD", "NanoGen")
+            base_path_sample = base_path.replace("NanoAOD", "NanoGen")
+        else:
+            base_path_sample = base_path
 
         is_data = info.get("group", "") == "Data"
 
@@ -292,7 +294,7 @@ def getDatasets(
         paths = makeFilelist(
             info["filepaths"],
             nfiles,
-            base_path=base_path,
+            base_path=base_path_sample,
             nano_prod_tags=prod_tags,
             is_data=is_data,
             oneMCfileEveryN=oneMCfileEveryN,

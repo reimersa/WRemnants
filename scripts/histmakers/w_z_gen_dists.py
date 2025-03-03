@@ -154,9 +154,15 @@ def build_graph(df, dataset):
         "Z",
     ]  # in common.zprocs
 
-    axis_massWgen = hist.axis.Variable(
-        [4.0, 13000.0], name="massVgen", underflow=True, overflow=False
-    )
+    if args.addCharmAxis:
+        axis_massWgen = hist.axis.Variable(
+            [4.0, 13000.0], name="massVgen", underflow=True, overflow=False
+        )
+    else:
+        axis_massWgen = hist.axis.Regular(
+            120, 0, 120.0, name="massVgen", underflow=True, overflow=True
+        )
+
     axis_massZgen = hist.axis.Regular(12, 60.0, 120.0, name="massVgen")
 
     theoryAgnostic_axes, _ = differential.get_theoryAgnostic_axes(
@@ -276,7 +282,10 @@ def build_graph(df, dataset):
         nominal_axes = [*nominal_axes, axis_charm]
         nominal_cols = [*nominal_cols, "charm"]
 
-        df = df.Define("charm", "Sum(abs(LHEPart_pdgId)==4) == 1")
+        df = df.Define(
+            "charm",
+            "Sum(abs(LHEPart_pdgId[LHEPart_status==1])==4) == 1 && Sum(abs(LHEPart_pdgId[LHEPart_status==1])==5) != 1",
+        )
 
     if args.addHelicityAxis:
         # add helicity axis, indices, and weights
@@ -822,7 +831,6 @@ def build_graph(df, dataset):
         and "winhac" not in dataset.name
         and "LHEScaleWeight" in df.GetColumnNames()
         and "LHEPdfWeight" in df.GetColumnNames()
-        and "MEParamWeight" in df.GetColumnNames()
     ):
 
         qcdScaleByHelicity_helper = (
@@ -848,6 +856,10 @@ def build_graph(df, dataset):
 
         helicity_axes = nominal_axes[:-1] if args.addHelicityAxis else nominal_axes
         helicity_cols = nominal_cols[:-2] if args.addHelicityAxis else nominal_cols
+
+        if args.addCharmAxis:
+            helicity_axes = helicity_axes[:-1]
+            helicity_cols = helicity_cols[:-1]
 
         df = syst_tools.add_helicity_hists(
             results,
