@@ -20,9 +20,11 @@ import tensorflow as tf
 from scipy.interpolate import RegularGridInterpolator
 
 import narf
-import narf.fitutils
-from utilities import boostHistHelpers as hh
-from utilities import common, logging
+import wums.fitutils
+import wums.ioutils
+from utilities import common
+from wums import boostHistHelpers as hh
+from wums import logging
 
 args = sys.argv[:]
 sys.argv = ["-b"]
@@ -480,7 +482,7 @@ def runSmoothing(
 
         boost_hist = narf.root_to_hist(h)
         params = np.array(arr)
-        res_polN_2d = narf.fitutils.fit_hist(boost_hist, polN_2d_scaled, params)
+        res_polN_2d = wums.fitutils.fit_hist(boost_hist, polN_2d_scaled, params)
         status = res_polN_2d["status"]
         covstatus = res_polN_2d["covstatus"]
         postfit_params = res_polN_2d["x"]
@@ -906,7 +908,7 @@ if __name__ == "__main__":
                 resultDict[ret.name] = ret
 
     resultDict.update(
-        {"meta_info": narf.ioutils.make_meta_info_dict(args=args, wd=common.base_dir)}
+        {"meta_info": wums.ioutils.make_meta_info_dict(args=args, wd=common.base_dir)}
     )
 
     outfile = outdir + args.outfilename
