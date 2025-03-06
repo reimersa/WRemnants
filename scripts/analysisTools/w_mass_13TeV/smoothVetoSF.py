@@ -18,7 +18,7 @@ import utilitiesCMG
 from scipy.interpolate import RegularGridInterpolator
 
 import narf
-import narf.fitutils
+import wums.fitutils
 import wums.ioutils
 from utilities import common
 from wums import boostHistHelpers as hh

@@ -90,16 +90,6 @@ parser.add_argument(
     help="Whether plot the under/overflow bin",
 )
 parser.add_argument(
-    "--fitresult",
-    type=str,
-    help="Specify a fitresult root file to draw the postfit distributions with uncertainty bands",
-)
-parser.add_argument(
-    "--prefit",
-    action="store_true",
-    help="Use the prefit uncertainty from the fitresult root file, instead of the postfit. (--fitresult has to be given)",
-)
-parser.add_argument(
     "--noRatioErr",
     action="store_false",
     dest="ratioError",
@@ -251,11 +241,6 @@ def padArray(ref, matchLength):
 
 
 addVariation = hasattr(args, "varName") and args.varName is not None
-
-if args.fitresult and len(args.hists) > 1:
-    raise ValueError(
-        "Multiple hists not supported for combine-based pre/post-fit plotting"
-    )
 
 entries = []
 varLabels = args.varLabel if addVariation else []
@@ -561,8 +546,6 @@ for h in args.hists:
         scaleRatioUnstacked=args.scaleRatioUnstacked,
         action=action,
         unstacked=unstack,
-        fitresult=args.fitresult,
-        prefit=args.prefit,
         xlabel=xlabel,
         ylabel=ylabel,
         rrange=args.rrange,
@@ -606,18 +589,12 @@ for h in args.hists:
                 else (var_arg + args.selectEntries[0])
             )
         to_join.append(var_arg)
-    if args.fitresult:
-        to_join.append("prefit" if args.prefit else "postfit")
     to_join.extend([args.postfix, args.channel.replace("all", "")])
     outfile = "_".join(filter(lambda x: x, to_join))
     if args.cmsDecor == "Preliminary":
         outfile += "_preliminary"
 
     plot_tools.save_pdf_and_png(outdir, outfile)
-
-    # The action has already been applied to the underlying hist in this case
-    if args.fitresult:
-        action = lambda x: x
 
     stack_yields = groups.make_yields_df(
         args.baseName, prednames, norm_proc="Data", action=base_action
