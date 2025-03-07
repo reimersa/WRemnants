@@ -1230,7 +1230,7 @@ def setup(
                     noi=not constrainMass,
                     noConstraint=not constrainMass,
                     mirror=False,
-                    systAxes=[*new_names, "massShift"],
+                    systAxes=["massShift", *new_names],
                     passToFakes=passSystToFakes,
                     actionRequiresNomi=True,
                     action=syst_tools.decorrelateByAxes,
@@ -2071,12 +2071,12 @@ def setup(
         ["etaPhiRegion", "downUpVar"] if era == "2016PostVFP" else ["downUpVar"]
     )
     prefireStatLabels = (
-        ["run", "etaPhiReg", "downUpVar"] if era == "2016PostVFP" else ["downUpVar"]
+        ["etaPhiReg", "downUpVar"] if era == "2016PostVFP" else ["downUpVar"]
     )
     prefireStatAction = None
     if "run" in fitvar:
-        prefireStatAxes = prefireStatAxes + ["runSystAxis"]
-        prefireStatLabels = prefireStatLabels + ["run"]
+        prefireStatAxes = ["runSystAxis"] + prefireStatAxes
+        prefireStatLabels = ["run"] + prefireStatLabels
         prefireStatAction = lambda h: hh.addHists(
             h,
             hh.expand_hist_by_duplicate_axis(h, "run", "runSystAxis"),
