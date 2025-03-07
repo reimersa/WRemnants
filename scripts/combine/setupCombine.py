@@ -2,11 +2,11 @@
 import argparse
 import math
 
-import combinetf2.debugdata
-import combinetf2.io_tools
 import hist
 import numpy as np
 
+import combinetf2.debugdata
+import combinetf2.io_tools
 from combinetf2 import tensorwriter
 from utilities import common, parsing
 from wremnants import (
@@ -1230,7 +1230,7 @@ def setup(
                     noi=not constrainMass,
                     noConstraint=not constrainMass,
                     mirror=False,
-                    systAxes=["massShift", *new_names],
+                    systAxes=[*new_names, "massShift"],
                     passToFakes=passSystToFakes,
                     actionRequiresNomi=True,
                     action=syst_tools.decorrelateByAxes,
@@ -2050,8 +2050,8 @@ def setup(
     prefireSystLabels = ["downUpVar"]
     prefireSystAction = None
     if "run" in fitvar:
-        prefireSystAxes = prefireSystAxes + ["runSystAxis"]
-        prefireSystLabels = prefireSystLabels + ["run"]
+        prefireSystAxes = ["runSystAxis"] + prefireSystAxes
+        prefireSystLabels = ["run"] + prefireSystLabels
         prefireSystAction = lambda h: hh.addHists(
             h,
             hh.expand_hist_by_duplicate_axis(h, "run", "runSystAxis"),
@@ -2068,10 +2068,10 @@ def setup(
     )
 
     prefireStatAxes = (
-        ["downUpVar", "etaPhiRegion"] if era == "2016PostVFP" else ["downUpVar"]
+        ["etaPhiRegion", "downUpVar"] if era == "2016PostVFP" else ["downUpVar"]
     )
     prefireStatLabels = (
-        ["downUpVar", "etaPhiReg", "run"] if era == "2016PostVFP" else ["downUpVar"]
+        ["run", "etaPhiReg", "downUpVar"] if era == "2016PostVFP" else ["downUpVar"]
     )
     prefireStatAction = None
     if "run" in fitvar:
