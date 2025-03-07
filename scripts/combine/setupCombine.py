@@ -857,7 +857,7 @@ def setup(
             f"When running lowPU mode, fakeEstimation should be set to 'simple' and fakeSmoothingMode set to 'binned'."
         )
 
-    if "run" in fitvar:
+    if dilepton and "run" in fitvar:
         # in case fit is split by runs/ cumulated lumi
         # run axis only exists for data, add it for MC, and scale the MC according to the luminosity fractions
         run_edges = common.run_edges
@@ -1809,12 +1809,12 @@ def setup(
         fakeselector = cardTool.datagroups.groups[cardTool.getFakeName()].histselector
 
         syst_axes = (
-            ["eta", "charge"]
+            [f"_{x}" for x in args.fakerateAxes if x != "pt"]
             if (
                 args.fakeSmoothingMode != "binned"
                 or args.fakeEstimation not in ["extrapolate"]
             )
-            else ["eta", "pt", "charge"]
+            else [f"_{x}" for x in args.fakerateAxes]
         )
         info = dict(
             name=inputBaseName,
@@ -1825,8 +1825,7 @@ def setup(
             scale=1,
             applySelection=False,  # don't apply selection, all regions will be needed for the action
             action=fakeselector.get_hist,
-            systAxes=[f"_{x}" for x in syst_axes if x in args.fakerateAxes]
-            + ["_param", "downUpVar"],
+            systAxes=syst_axes + ["_param", "downUpVar"],
         )
         if args.fakeSmoothingMode in ["hybrid", "full"]:
             subgroup = f"{cardTool.getFakeName()}Smoothing"
@@ -1989,6 +1988,7 @@ def setup(
                         for x in list(effTypesNoIso + ["iso"])
                     }
                     splitGroupDict["muon_eff_all"] = ".*"
+                    actionSF = None
                 else:
                     nameReplace = (
                         []
@@ -2000,7 +2000,9 @@ def setup(
                     if args.binnedScaleFactors:
                         axes = ["SF eta", "nPtBins", "SF charge"]
                     else:
+                        # axes = ["SF eta", "nPtEigenBins", "SF charge", "runSystAxis"] if "run" in fitvar else ["SF eta", "nPtEigenBins", "SF charge"]
                         axes = ["SF eta", "nPtEigenBins", "SF charge"]
+                    # axlabels = ["eta", "pt", "q", "run"] if "run" in fitvar else ["eta", "pt", "q"]
                     axlabels = ["eta", "pt", "q"]
                     nameReplace = nameReplace + [("effStatTnP_sf_", "effStat_")]
                     scale = 1
@@ -2009,6 +2011,10 @@ def setup(
                         f"{groupName}_{x}": f".*effStat.*{x}" for x in effStatTypes
                     }
                     splitGroupDict["muon_eff_all"] = ".*"
+                    # actionSF = lambda h: hh.addHists(
+                    #    h, hh.expand_hist_by_duplicate_axis(h, "run", "runSystAxis"),
+                    # ) if "run" in fitvar else None
+                    actionSF = None
                 if args.effStatLumiScale and "Syst" not in name:
                     scale /= math.sqrt(args.effStatLumiScale)
 
@@ -2024,6 +2030,7 @@ def setup(
                     },
                     systAxes=axes,
                     labelsByAxis=axlabels,
+                    action=actionSF,
                     baseName=name + "_",
                     processes=["MCnoQCD"],
                     passToFakes=passSystToFakes,
@@ -2263,30 +2270,54 @@ def setup(
     #     passToFakes=passSystToFakes,
     #     scale = args.scaleMuonCorr,
     # )
+    prefireSystAxes = ["downUpVar"]
+    prefireSystLabels = ["downUpVar"]
+    prefireSystAction = None
+    if "run" in fitvar:
+        prefireSystAxes = prefireSystAxes + ["runSystAxis"]
+        prefireSystLabels = prefireSystLabels + ["run"]
+        prefireSystAction = lambda h: hh.addHists(
+            h,
+            hh.expand_hist_by_duplicate_axis(h, "run", "runSystAxis"),
+        )
     cardTool.addSystematic(
         "muonL1PrefireSyst",
         processes=["MCnoQCD"],
         group="muonPrefire",
         splitGroup={f"prefire": f".*", "experiment": ".*", "expNoCalib": ".*"},
         baseName="CMS_prefire_syst_m",
-        systAxes=["downUpVar"],
-        labelsByAxis=["downUpVar"],
+        systAxes=prefireSystAxes,
+        labelsByAxis=prefireSystLabels,
         passToFakes=passSystToFakes,
+        action=prefireSystAction,
     )
+
+    prefireStatAxes = (
+        ["downUpVar", "etaPhiRegion"] if era == "2016PostVFP" else ["downUpVar"]
+    )
+    prefireStatLabels = (
+        ["downUpVar", "etaPhiReg", "run"] if era == "2016PostVFP" else ["downUpVar"]
+    )
+    prefireStatAction = None
+    if "run" in fitvar:
+        prefireStatAxes = prefireStatAxes + ["runSystAxis"]
+        prefireStatLabels = prefireStatLabels + ["run"]
+        prefireStatAction = lambda h: hh.addHists(
+            h,
+            hh.expand_hist_by_duplicate_axis(h, "run", "runSystAxis"),
+        )
     cardTool.addSystematic(
         "muonL1PrefireStat",
         processes=["MCnoQCD"],
         group="muonPrefire",
         splitGroup={f"prefire": f".*", "experiment": ".*", "expNoCalib": ".*"},
         baseName="CMS_prefire_stat_m_",
-        systAxes=(
-            ["downUpVar", "etaPhiRegion"] if era == "2016PostVFP" else ["downUpVar"]
-        ),
-        labelsByAxis=(
-            ["downUpVar", "etaPhiReg"] if era == "2016PostVFP" else ["downUpVar"]
-        ),
         passToFakes=passSystToFakes,
+        systAxes=prefireStatAxes,
+        labelsByAxis=prefireStatLabels,
+        action=prefireStatAction,
     )
+
     cardTool.addSystematic(
         "ecalL1Prefire",
         processes=["MCnoQCD"],
@@ -2385,7 +2416,7 @@ def setup(
             passToFakes=passSystToFakes,
         )
 
-    if "run" in fitvar:
+    if dilepton and "run" in fitvar:
         # add ad-hoc normalization uncertainty uncorrelated across run bins
         #   accounting for time instability (e.g. reflecting the corrections applied as average like pileup, prefiring, ...)
         cardTool.addSystematic(

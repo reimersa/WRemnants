@@ -61,6 +61,13 @@ if __name__ == "__main__":
         default=1.5,
         help="Scale the width of the figure with this factor",
     )
+    parser.add_argument(
+        "--partialImpact",
+        nargs=2,
+        type=str,
+        default=["muonCalibration", "Calib. unc."],
+        help="Uncertainty group to plot as partial error bar (in addition to data stat, which is always there)",
+    )
 
     parser = parsing.set_parser_default(parser, "legCols", 1)
 
@@ -68,6 +75,8 @@ if __name__ == "__main__":
     logger = logging.setup_logger(__file__, args.verbose, args.noColorLogger)
 
     outdir = output_tools.make_plot_dir(args.outpath, args.outfolder, eoscp=args.eoscp)
+
+    partialImpact, partialImpactLegend = args.partialImpact
 
     fitresult = combinetf_input.get_fitresult(args.infile.replace(".root", ".hdf5"))
     meta = ioutils.pickle_load_h5py(fitresult["meta"])
@@ -83,7 +92,7 @@ if __name__ == "__main__":
             fInclusive,
             poi_type=args.poiType,
             group=True,
-            uncertainties=["stat", "muonCalibration"],
+            uncertainties=["stat", partialImpact],
         )
         with uproot.open(
             f"{args.infileInclusive.replace('.hdf5','.root')}:fitresults"
@@ -96,14 +105,14 @@ if __name__ == "__main__":
             fNominal,
             poi_type=args.poiType,
             group=True,
-            uncertainties=["stat", "muonCalibration"],
+            uncertainties=["stat", partialImpact],
         )
 
     df = combinetf_input.read_impacts_pois(
         fitresult,
         poi_type=args.poiType,
         group=True,
-        uncertainties=["stat", "muonCalibration"],
+        uncertainties=["stat", partialImpact],
     )
 
     df["Params"] = df["Name"].apply(lambda x: x.split("_")[0])
@@ -139,6 +148,8 @@ if __name__ == "__main__":
         if not args.absoluteParam or "Diff" in param:
             xlabel = r"$\Delta " + xlabel[1:]
             offset = 0
+
+        logger.info(f"offset = {offset}")
 
         df_p["Names"] = df_p["Name"].apply(
             lambda x: "".join(
@@ -257,6 +268,22 @@ if __name__ == "__main__":
                 df_p["etaRegionSign"].apply(lambda x: str(axis_ranges[x])).astype(str)
             )
             # ylabel="$\mathrm{sign}(\mathit{\eta}^{\mu^+}) + \mathrm{sign}(\mathit{\eta}^{\mu^-})$"
+        elif "run" in axes:
+            # axis_ranges = {
+            #     0: r"Data FG: 8.07 $\mathrm{fb}^{-1}$",
+            #     1: r"Data H: 8.74 $\mathrm{fb}^{-1}$",
+            #     #0: r"Data v1: 8.4 $\mathrm{fb}^{-1}$",
+            #     #1: r"Data v2: 8.4 $\mathrm{fb}^{-1}$",
+            # }
+            axis_ranges = {
+                0: r"FG v1: 4.33 $\mathrm{fb}^{-1}$",
+                1: r"FG v2: 3.74 $\mathrm{fb}^{-1}$",
+                2: r" H v1: 4.19 $\mathrm{fb}^{-1}$",
+                3: r" H v2: 4.55 $\mathrm{fb}^{-1}$",
+            }
+            df_p["yticks"] = (
+                df_p["run"].apply(lambda x: str(axis_ranges[x])).astype(str)
+            )
         else:
             # otherwise just take noi name
             df_p["yticks"] = df_p["Names"]
@@ -269,7 +296,7 @@ if __name__ == "__main__":
         val = df_p["value"].values * scale + offset
         err = df_p["err_total"].values * scale
         err_stat = df_p["err_stat"].values * scale
-        err_cal = df_p["err_muonCalibration"].values * scale
+        err_cal = df_p[f"err_{partialImpact}"].values * scale
 
         if args.infileNominal:
             if len(dfNominal) > 1:
@@ -281,7 +308,10 @@ if __name__ == "__main__":
                     f"Found 0 values from the inclusive fit but was expecting 1"
                 )
 
-            central = dfNominal["value"].values[0] * scale + offset
+            central_no_offset = dfNominal["value"].values[0] * scale
+            central = central_no_offset + offset
+            logger.info(f"Nominal (no offset) = {central_no_offset}")
+            logger.info(f"Nominal (w/ offset) = {central}")
         else:
             central = 0
 
@@ -296,16 +326,18 @@ if __name__ == "__main__":
                 )
 
             c_err_stat = dfInclusive["err_stat"].values[0] * scale
-            c_err_cal = dfInclusive["err_muonCalibration"].values[0] * scale
+            c_err_cal = dfInclusive[f"err_{partialImpact}"].values[0] * scale
             c_err = dfInclusive["err_total"].values[0] * scale
             c = dfInclusive["value"].values[0] * scale + offset
 
+            logger.info(f"Inclusive (before subtracting central) = {c}")
             if args.infileNominal:
                 c -= central
             else:
                 if not args.showMCInput:
                     central = c
                     c = 0
+            logger.info(f"Inclusive (after subtracting central) = {c}")
 
         val -= central
 
@@ -412,7 +444,7 @@ if __name__ == "__main__":
             marker="",
             linestyle="",
             linewidth=5,
-            label="Calib. unc.",
+            label=partialImpactLegend,
             zorder=2,
         )
         ax1.errorbar(
