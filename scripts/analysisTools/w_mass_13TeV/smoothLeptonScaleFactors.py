@@ -30,10 +30,10 @@ import numpy as np
 import ROOT
 import tensorflow as tf
 import utilitiesCMG
+import wums.fitutils
 from scipy.interpolate import RegularGridInterpolator
 
 import narf
-import narf.fitutils
 from utilities import common
 
 utilities = utilitiesCMG.util()
@@ -397,7 +397,7 @@ def fitTurnOnTF(
                     pol2_root, xLowVal=minFitRange, xFitRange=xFitRange
                 )
             params = np.array([1.0, 0.0, 0.0])
-            res_tf1_pol2 = narf.fitutils.fit_hist(boost_hist, pol2_tf_scaled, params)
+            res_tf1_pol2 = wums.fitutils.fit_hist(boost_hist, pol2_tf_scaled, params)
             # for plotting purpose define the TF1 in the original range
             tf1_pol2 = ROOT.TF1(
                 "tf1_pol2", pol2_tf_scaled, minFitRange, maxFitRange, len(params)
@@ -417,7 +417,7 @@ def fitTurnOnTF(
             defaultFunc = "pol2_tf"
             if histoAlt:
                 params = np.array([1.0, 0.0, 0.0])
-                res_tf1_pol2_alt = narf.fitutils.fit_hist(
+                res_tf1_pol2_alt = wums.fitutils.fit_hist(
                     boost_hist_alt, pol2_tf_scaled, params
                 )
                 tf1_pol2_alt = ROOT.TF1(
@@ -445,7 +445,7 @@ def fitTurnOnTF(
                     pol3_root, xLowVal=minFitRange, xFitRange=xFitRange
                 )
             params = np.array([1.0, 0.0, 0.0, 0.0])
-            res_tf1_pol3 = narf.fitutils.fit_hist(boost_hist, pol3_tf_scaled, params)
+            res_tf1_pol3 = wums.fitutils.fit_hist(boost_hist, pol3_tf_scaled, params)
             tf1_pol3 = ROOT.TF1(
                 "tf1_pol3", pol3_tf_scaled, minFitRange, maxFitRange, len(params)
             )
@@ -472,7 +472,7 @@ def fitTurnOnTF(
             defaultFunc = "pol3_tf"
             if histoAlt:
                 params = np.array([1.0, 0.0, 0.0, 0.0])
-                res_tf1_pol3_alt = narf.fitutils.fit_hist(
+                res_tf1_pol3_alt = wums.fitutils.fit_hist(
                     boost_hist_alt, pol3_tf_scaled, params
                 )
                 tf1_pol3_alt = ROOT.TF1(
@@ -506,7 +506,7 @@ def fitTurnOnTF(
                 minFitRange,
                 maxFitRange,
             )
-            res_tf1_erf = narf.fitutils.fit_hist(
+            res_tf1_erf = wums.fitutils.fit_hist(
                 boost_hist, antiErf_tf, np.array([1.0, 35.0, 3.0])
             )
         else:
@@ -516,7 +516,7 @@ def fitTurnOnTF(
                 minFitRange,
                 maxFitRange,
             )
-            res_tf1_erf = narf.fitutils.fit_hist(
+            res_tf1_erf = wums.fitutils.fit_hist(
                 boost_hist, erf_tf, np.array([1.0, 35.0, 3.0])
             )
         tf1_erf.SetParameters(np.array(res_tf1_erf["x"], dtype=np.float64))
@@ -540,7 +540,7 @@ def fitTurnOnTF(
                     degree=efficiencyFitPolDegree,
                 )
             params = np.array([1.0] + [0.0 for i in range(efficiencyFitPolDegree)])
-            res_tf1_polN = narf.fitutils.fit_hist(boost_hist, polN_tf_scaled, params)
+            res_tf1_polN = wums.fitutils.fit_hist(boost_hist, polN_tf_scaled, params)
             tf1_polN = ROOT.TF1(
                 f"tf1_pol{efficiencyFitPolDegree}",
                 polN_tf_scaled,
@@ -579,7 +579,7 @@ def fitTurnOnTF(
                 res_tf1_polN_alt = None
             else:
                 params = np.array([1.0] + [0.0 for i in range(efficiencyFitPolDegree)])
-                res_tf1_polN_alt = narf.fitutils.fit_hist(
+                res_tf1_polN_alt = wums.fitutils.fit_hist(
                     boost_hist_alt, polN_tf_scaled, params
                 )
                 tf1_polN_alt = ROOT.TF1(

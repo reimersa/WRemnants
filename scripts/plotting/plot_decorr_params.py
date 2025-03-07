@@ -1,15 +1,16 @@
 import re
 
+import combinetf2.io_tools
 import numpy as np
 import uproot
 from matplotlib.patches import Polygon
 from scipy.stats import chi2
 
-from narf import ioutils
-from utilities import logging, parsing
-from utilities.io_tools import combinetf_input, output_tools
+from utilities import parsing
+from utilities.io_tools import combinetf2_input, output_tools
 from utilities.styles import styles
 from wremnants import plot_tools
+from wums import logging
 
 if __name__ == "__main__":
     parser = parsing.plot_parser()
@@ -78,8 +79,7 @@ if __name__ == "__main__":
 
     partialImpact, partialImpactLegend = args.partialImpact
 
-    fitresult = combinetf_input.get_fitresult(args.infile.replace(".root", ".hdf5"))
-    meta = ioutils.pickle_load_h5py(fitresult["meta"])
+    fitresult, meta = combinetf2.io_tools.get_fitresult(args.infile, meta=True)
     meta_info = meta["meta_info"]
     lumi = sum([c["lumi"] for c in meta["channel_info"].values()])
 
@@ -87,8 +87,8 @@ if __name__ == "__main__":
         nll = utree["nllvalfull"].array(library="np")
 
     if args.infileInclusive:
-        fInclusive = combinetf_input.get_fitresult(args.infileInclusive)
-        dfInclusive = combinetf_input.read_impacts_pois(
+        fInclusive = combinetf2.io_tools.get_fitresult(args.infileInclusive)
+        dfInclusive = combinetf2.io_tools.read_impacts_pois(
             fInclusive,
             poi_type=args.poiType,
             group=True,
@@ -100,15 +100,15 @@ if __name__ == "__main__":
             nll_inclusive = utree["nllvalfull"].array(library="np")
 
     if args.infileNominal:
-        fNominal = combinetf_input.get_fitresult(args.infileNominal)
-        dfNominal = combinetf_input.read_impacts_pois(
+        fNominal = combinetf2.io_tools.get_fitresult(args.infileNominal)
+        dfNominal = combinetf2.io_tools.read_impacts_pois(
             fNominal,
             poi_type=args.poiType,
             group=True,
             uncertainties=["stat", partialImpact],
         )
 
-    df = combinetf_input.read_impacts_pois(
+    df = combinetf2.io_tools.read_impacts_pois(
         fitresult,
         poi_type=args.poiType,
         group=True,
@@ -162,7 +162,7 @@ if __name__ == "__main__":
         axes = []
         for i, v in enumerate(args.axes):
             df_p[v] = df_p["Names"].apply(
-                lambda x: combinetf_input.decode_poi_bin(x, v)
+                lambda x: combinetf2_input.decode_poi_bin(x, v)
             )
             if all(df_p[v].values == None):
                 continue

@@ -1,7 +1,8 @@
 import argparse
 import os
 
-from utilities import common, logging
+from utilities import common
+from wums import logging
 
 # choices for legend padding
 choices_padding = ["auto", "lower left", "lower right", "upper left", "upper right"]
@@ -27,141 +28,6 @@ def set_parser_attribute(parser, argument, attribute, newValue):
 def set_parser_default(parser, argument, newDefault):
     # change the default argument of the parser, must be called before parse_arguments
     return set_parser_attribute(parser, argument, "default", newDefault)
-
-
-def set_subparsers(subparser, name, analysis_label):
-
-    if name is None:
-        return subparser
-
-    # options in common between unfolding/theoryAgnostic but not known to the main parser
-    subparser.add_argument(
-        "--poiAsNoi",
-        action="store_true",
-        help="Make histogram to do the POIs as NOIs trick (some postprocessing will happen later in CardTool.py)",
-    )
-
-    if name == "unfolding":
-        # specific for unfolding
-        axmap = {
-            "w_lowpu": ["ptVGen"],
-            "w_mass": ["ptGen", "absEtaGen"],
-            "z_dilepton": ["ptVGen", "absYVGen"],
-        }
-        axmap["z_lowpu"] = axmap["w_lowpu"]
-        axmap["z_wlike"] = ["qGen", *axmap["w_mass"]]
-        if analysis_label not in axmap:
-            raise ValueError(f"Unknown analysis {analysis_label}!")
-        subparser.add_argument(
-            "--genAxes",
-            type=str,
-            nargs="+",
-            default=axmap[analysis_label],
-            choices=["qGen", "ptGen", "absEtaGen", "ptVGen", "absYVGen", "helicitySig"],
-            help="Generator level variable",
-        )
-        subparser.add_argument(
-            "--genLevel",
-            type=str,
-            default="postFSR",
-            choices=["preFSR", "postFSR"],
-            help="Generator level definition for unfolding",
-        )
-        subparser.add_argument(
-            "--genBins",
-            type=int,
-            nargs="+",
-            default=[18, 0] if "wlike" in analysis_label else [16, 0],
-            help="Number of generator level bins",
-        )
-        subparser.add_argument(
-            "--fitresult",
-            type=str,
-            help="Fitresult to be used to reweight the gen distribution (e.g. for iterative POI as NOI unfolding)",
-        )
-        subparser.add_argument(
-            "--inclusive",
-            action="store_true",
-            help="No fiducial selection (mass window only)",
-        )
-    elif "theoryAgnostic" in name:
-        # specific for theory agnostic
-        subparser.add_argument(
-            "--genAxes",
-            type=str,
-            nargs="+",
-            default=["ptVgenSig", "absYVgenSig", "helicitySig"],
-            choices=["qGen", "ptVgenSig", "absYVgenSig", "helicitySig"],
-            help="Generator level variable",
-        )
-        subparser.add_argument(
-            "--genPtVbinEdges",
-            type=float,
-            nargs="*",
-            default=[],
-            help="Bin edges of gen ptV axis for theory agnostic",
-        )
-        subparser.add_argument(
-            "--genAbsYVbinEdges",
-            type=float,
-            nargs="*",
-            default=[],
-            help="Bin edges of gen |yV| axis for theory agnostic",
-        )
-        if name == "theoryAgnosticPolVar":
-            subparser.add_argument(
-                "--theoryAgnosticFilePath",
-                type=str,
-                default=".",
-                help="Path where input files are stored",
-            )
-            subparser.add_argument(
-                "--theoryAgnosticFileTag",
-                type=str,
-                default="x0p50_y3p00_THAGNV0",
-                help="Tag for input files",
-            )
-            subparser.add_argument(
-                "--theoryAgnosticSplitOOA",
-                action="store_true",
-                help="Define out-of-acceptance signal template as an independent process",
-            )
-
-    else:
-        raise NotImplementedError(f"Subparser {name} is not defined. Please check!")
-
-    return subparser
-
-
-def common_histmaker_subparsers(parser, analysis_label):
-
-    parser.add_argument(
-        "--analysisMode",
-        type=str,
-        default=None,
-        choices=["unfolding", "theoryAgnosticNormVar", "theoryAgnosticPolVar"],
-        help="Select analysis mode to run. Default is the traditional analysis",
-    )
-
-    tmpKnownArgs, _ = parser.parse_known_args()
-    unfolding = tmpKnownArgs.analysisMode == "unfolding"
-    parser.add_argument(
-        "--eta",
-        nargs=3,
-        type=float,
-        help="Eta binning as 'nbins min max' (only uniform for now)",
-        default=common.get_default_etabins(analysis_label),
-    )
-    parser.add_argument(
-        "--pt",
-        nargs=3,
-        type=float,
-        help="Pt binning as 'nbins,min,max' (only uniform for now)",
-        default=common.get_default_ptbins(analysis_label, unfolding=unfolding),
-    )
-    parser = set_subparsers(parser, tmpKnownArgs.analysisMode, analysis_label)
-
-    return parser
 
 
 def base_parser():
@@ -654,7 +520,149 @@ def common_parser(analysis_label=""):
     parser.add_argument(
         "--sfFile", type=str, help="File with muon scale factors", default=sfFile
     )
-    parser = common_histmaker_subparsers(parser, analysis_label)
+
+    if analysis_label not in ["vgen"]:
+        parser.add_argument(
+            "--eta",
+            nargs=3,
+            type=float,
+            help="Eta binning as 'nbins min max' (only uniform for now)",
+            default=common.get_default_etabins(analysis_label),
+        )
+        parser.add_argument(
+            "--pt",
+            nargs=3,
+            type=float,
+            help="Pt binning as 'nbins,min,max' (only uniform for now)",
+            default=common.get_default_ptbins(analysis_label),
+        )
+        parser.add_argument(
+            "--fitresult",
+            type=str,
+            help="Fitresult to be used to reweight the gen distribution (e.g. for iterative POI as NOI fit)",
+        )
+        parser.add_argument(
+            "--poiAsNoi",
+            action="store_true",
+            help="Make histogram to do the POIs as NOIs trick (some postprocessing will happen later in CardTool.py)",
+        )
+        parser.add_argument(
+            "--xnormOnly",
+            action="store_true",
+            help="Only store xnorm histograms (e.g. for re-interpretation of gen events)",
+        )
+        parser.add_argument(
+            "--unfolding",
+            action="store_true",
+            help="Add gen axes (exact) and/or gen histograms needed for unfolding, depending if --poiAsNoi is specified or not",
+        )
+        parser.add_argument(
+            "--theoryAgnostic",
+            action="store_true",
+            help="Add gen axes (exact) and/or gen histograms needed for theory agnostic fit, depending if --poiAsNoi is specified or not",
+        )
+        tmpKnownArgs, _ = parser.parse_known_args()
+        if (
+            not tmpKnownArgs.poiAsNoi
+            and tmpKnownArgs.unfolding
+            and tmpKnownArgs.theoryAgnostic
+        ):
+            raise RuntimeError(
+                "Producing histograms for unfolding and theory agnostic is only supported with '--poiAsNoi'"
+            )
+
+        # specific for unfolding
+        axmap = {
+            "w_lowpu": ["ptVGen", "qVGen"],
+            "w_mass": ["absEtaGen", "ptGen", "qGen"],
+            "z_dilepton": ["ptVGen", "absYVGen"],
+            "z_lowpu": ["ptVGen"],
+        }
+        axmap["z_wlike"] = axmap["w_mass"]
+        if analysis_label not in axmap:
+            raise ValueError(f"Unknown analysis {analysis_label}!")
+        parser.add_argument(
+            "--unfoldingAxes",
+            type=str,
+            nargs="+",
+            default=axmap[analysis_label],
+            choices=[
+                "qGen",
+                "ptGen",
+                "absEtaGen",
+                "qVGen",
+                "ptVGen",
+                "absYVGen",
+                "helicitySig",
+            ],
+            help="Generator level variable",
+        )
+        parser.add_argument(
+            "--unfoldingBins",
+            type=int,
+            nargs="+",
+            default=[0, 17] if "wlike" in analysis_label else [0, 15],
+            help="Number of generator level bins",
+        )
+        parser.add_argument(
+            "--unfoldingLevels",
+            type=str,
+            nargs="+",
+            default=["prefsr", "postfsr"],
+            choices=["prefsr", "postfsr"],
+            help="Generator level definition for unfolding (only one for exact unfolding)",
+        )
+        parser.add_argument(
+            "--unfoldingInclusive",
+            action="store_true",
+            help="No fiducial selection (mass window only)",
+        )
+
+        # specific for theory agnostic
+        parser.add_argument(
+            "--theoryAgnosticGenAxes",
+            type=str,
+            nargs="+",
+            default=["ptVgenSig", "absYVgenSig", "helicitySig"],
+            choices=["qGen", "ptVgenSig", "absYVgenSig", "helicitySig"],
+            help="Generator level variable",
+        )
+        parser.add_argument(
+            "--theoryAgnosticGenPtVbinEdges",
+            type=float,
+            nargs="*",
+            default=[],
+            help="Bin edges of gen ptV axis for theory agnostic",
+        )
+        parser.add_argument(
+            "--theoryAgnosticGenAbsYVbinEdges",
+            type=float,
+            nargs="*",
+            default=[],
+            help="Bin edges of gen |yV| axis for theory agnostic",
+        )
+        parser.add_argument(
+            "--theoryAgnosticPolVar",
+            action="store_true",
+            help="In conjunction with '--theoryAgnostic' PolVar definition, otherwise NormVar",
+        )
+        parser.add_argument(
+            "--theoryAgnosticFilePath",
+            type=str,
+            default=".",
+            help="Path where input files are stored",
+        )
+        parser.add_argument(
+            "--theoryAgnosticFileTag",
+            type=str,
+            default="x0p50_y3p00_THAGNV0",
+            help="Tag for input files",
+        )
+        parser.add_argument(
+            "--theoryAgnosticSplitOOA",
+            action="store_true",
+            help="Define out-of-acceptance signal template as an independent process",
+        )
 
     class PrintParserAction(argparse.Action):
         def __init__(self, option_strings, dest, nargs=0, **kwargs):
