@@ -5,13 +5,13 @@
 import json
 import math
 
-import combinetf2.io_tools
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import mplhep as hep
 import numpy as np
 import pandas as pd
 
+import combinetf2.io_tools
 from utilities import parsing
 from utilities.io_tools import conversion_tools, output_tools, tex_tools
 from utilities.styles.styles import nuisance_groupings

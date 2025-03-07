@@ -1,11 +1,11 @@
 import re
 
-import combinetf2.io_tools
 import numpy as np
 import uproot
 from matplotlib.patches import Polygon
 from scipy.stats import chi2
 
+import combinetf2.io_tools
 from utilities import parsing
 from utilities.io_tools import combinetf2_input, output_tools
 from utilities.styles import styles

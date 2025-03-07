@@ -1,7 +1,7 @@
-import combinetf2.io_tools
 import mplhep as hep
 import numpy as np
 
+import combinetf2.io_tools
 from utilities import parsing
 from wremnants import plot_tools
 from wremnants.datasets.datagroups import Datagroups

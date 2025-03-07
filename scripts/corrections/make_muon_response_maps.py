@@ -5,6 +5,7 @@ import numpy as np
 import scipy
 import tensorflow as tf
 import tensorflow_probability as tfp
+
 import wums.fitutils
 import wums.ioutils
 import wums.tfutils

@@ -11,9 +11,9 @@ import sys
 
 import hist
 import lz4.frame
-import wums.ioutils
 
 import narf
+import wums.ioutils
 from utilities import common
 from wremnants.datasets.datagroups import Datagroups
 

@@ -1,10 +1,10 @@
 import itertools
 import re
 
-import combinetf2.io_tools
 import hist
 import numpy as np
 
+import combinetf2.io_tools
 from utilities.io_tools import combinetf2_input
 from wums import ioutils, logging
 

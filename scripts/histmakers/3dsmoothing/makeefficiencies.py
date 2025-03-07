@@ -1,8 +1,8 @@
 import h5py
 import ROOT
-import wums.ioutils
 
 import narf
+import wums.ioutils
 
 # FIRST STEP IN EFFICIENCY CREATION
 

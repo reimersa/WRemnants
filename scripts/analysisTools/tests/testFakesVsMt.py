@@ -17,9 +17,9 @@ import sys
 
 import hist
 import numpy as np
-import wums.fitutils
 
 import narf
+import wums.fitutils
 from wremnants import legacy_functions as sel
 from wremnants.datasets.datagroups import Datagroups
 from wums import boostHistHelpers as hh

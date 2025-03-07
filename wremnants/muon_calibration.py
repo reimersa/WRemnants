@@ -7,10 +7,10 @@ import lz4.frame
 import numpy as np
 import ROOT
 import uproot
-import wums.ioutils
 
 import narf
 import narf.tfliteutils
+import wums.ioutils
 from utilities import common
 from wums import boostHistHelpers as hh
 from wums import logging

@@ -1,9 +1,9 @@
 import itertools
 import re
 
-import combinetf2.io_tools
 import pandas as pd
 
+import combinetf2.io_tools
 from wums import logging
 
 logger = logging.child_logger(__name__)

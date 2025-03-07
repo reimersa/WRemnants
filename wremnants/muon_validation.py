@@ -1,7 +1,7 @@
 import hist
-import wums.ioutils
 
 import narf
+import wums.ioutils
 from utilities import common
 from wums import boostHistHelpers as hh
 from wums import logging

@@ -17,11 +17,11 @@ import lz4.frame
 import numpy as np
 import ROOT
 import tensorflow as tf
-import wums.fitutils
-import wums.ioutils
 from scipy.interpolate import RegularGridInterpolator
 
 import narf
+import wums.fitutils
+import wums.ioutils
 from utilities import common
 from wums import boostHistHelpers as hh
 from wums import logging

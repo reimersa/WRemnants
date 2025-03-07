@@ -30,10 +30,10 @@ import numpy as np
 import ROOT
 import tensorflow as tf
 import utilitiesCMG
-import wums.fitutils
 from scipy.interpolate import RegularGridInterpolator
 
 import narf
+import wums.fitutils
 from utilities import common
 
 utilities = utilitiesCMG.util()

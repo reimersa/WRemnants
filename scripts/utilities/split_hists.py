@@ -4,8 +4,8 @@ import copy
 
 import boost_histogram as bh
 import h5py
-import wums.ioutils
 
+import wums.ioutils
 from wums import logging
 
 parser = argparse.ArgumentParser()

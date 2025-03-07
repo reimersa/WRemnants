@@ -5,9 +5,9 @@ import os
 import h5py
 import hist
 import numpy as np
-import wums.ioutils
 from matplotlib import cm
 
+import wums.ioutils
 from utilities.differential import get_theoryAgnostic_axes
 from utilities.io_tools import input_tools, output_tools
 from wremnants import plot_tools, theory_tools
