@@ -1232,6 +1232,8 @@ def setup(
                     mirror=False,
                     systAxes=["massShift", *new_names],
                     passToFakes=passSystToFakes,
+                    # isPoiHistDecorr is a special flag to deal with how the massShift variations are internally formed
+                    isPoiHistDecorr=len(args.fitMassDecorr),
                     actionRequiresNomi=True,
                     action=syst_tools.decorrelateByAxes,
                     actionArgs=dict(

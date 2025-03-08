@@ -7,10 +7,9 @@ from scipy.stats import chi2
 
 import combinetf2.io_tools
 from utilities import parsing
-from utilities.io_tools import combinetf2_input, output_tools
+from utilities.io_tools import combinetf2_input
 from utilities.styles import styles
-from wremnants import plot_tools
-from wums import logging
+from wums import logging, output_tools, plot_tools
 
 if __name__ == "__main__":
     parser = parsing.plot_parser()
