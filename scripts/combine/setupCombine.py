@@ -367,11 +367,6 @@ def make_parser(parser=None):
         help="Order of the polynomial for the smoothing of the application region or full prediction, depending on the smoothing mode",
     )
     parser.add_argument(
-        "--skipSumGroups",
-        action="store_true",
-        help="Don't add sum groups to the output to save time e.g. when computing impacts",
-    )
-    parser.add_argument(
         "--allowNegativeExpectation",
         action="store_true",
         help="Allow processes to have negative contributions",
@@ -1184,6 +1179,7 @@ def setup(
         exclude_bin_by_bin_stat="signal_samples" if args.explicitSignalMCstat else None,
         bin_by_bin_stat_scale=args.binByBinStatScaleForMW if wmass else 1.0,
         fitresult_data=fitresult_data,
+        masked=xnorm,
     )
 
     if args.doStatOnly and isUnfolding and not isPoiAsNoi:
@@ -2355,6 +2351,20 @@ if __name__ == "__main__":
             lumi=lumi,
             fitresult_data=fitresult_data,
         )
+
+        if isFloatingPOIs or isUnfolding:
+            # add masked channel
+            datagroups_xnorm = setup(
+                writer,
+                args,
+                ifile,
+                args.unfoldingLevel,
+                iLumiScale,
+                genvar,
+                genvar,
+                channel=f"{channel}_masked",
+                lumi=lumi,
+            )
 
         outnames.append(
             (
