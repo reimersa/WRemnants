@@ -1957,12 +1957,20 @@ class Datagroups(object):
                     h = hdata[{pseudoDataAxes[idx]: idx}]
                     if h.axes.name != self.fit_axes:
                         h = h.project(*self.fit_axes)
+
+                    if self.channel not in self.writer.channels:
+                        self.writer.add_channel(axes=h.axes, name=self.channel)
+
                     self.writer.add_pseudodata(h, name, self.channel)
             else:
                 # pseudodata from alternative histogram that has no syst axis
                 logger.info(f"Write pseudodata {p}")
                 if hdata.axes.name != self.fit_axes:
                     hdata = hdata.project(*self.fit_axes)
+
+                if self.channel not in self.writer.channels:
+                    self.writer.add_channel(axes=hdata.axes, name=self.channel)
+
                 self.writer.add_pseudodata(hdata, p, self.channel)
 
     def addPseudodataHistogramsFitInput(
