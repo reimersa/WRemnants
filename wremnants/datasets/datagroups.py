@@ -1177,7 +1177,7 @@ class Datagroups(object):
                 )
 
             if self.channel not in self.writer.channels:
-                self.writer.add_channel(axes = norm_proc_hist.axes, name=self.channel)
+                self.writer.add_channel(axes=norm_proc_hist.axes, name=self.channel)
 
             self.writer.add_process(
                 norm_proc_hist,
