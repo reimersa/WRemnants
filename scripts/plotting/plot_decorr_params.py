@@ -1,7 +1,7 @@
 import re
 
 import numpy as np
-import uproot
+import pandas as pd
 from matplotlib.patches import Polygon
 from scipy.stats import chi2
 
@@ -10,6 +10,55 @@ from utilities import parsing
 from utilities.io_tools import combinetf2_input
 from utilities.styles import styles
 from wums import logging, output_tools, plot_tools
+
+
+def get_values_and_impacts_as_panda(
+    input_file,
+    partial_impacts_to_read=None,
+    print_debug=False,
+    global_impacts=False,
+    scale=1.0,
+    scale_from_poi_name=False,
+):
+
+    fitres, meta = combinetf2.io_tools.get_fitresult(input_file, meta=True)
+    poi_names = combinetf2.io_tools.get_poi_names(meta)
+    poi_values = []
+    totals = []
+    uncertainties = {}
+    for poi in poi_names:
+        impacts, labels = combinetf2.io_tools.read_impacts_poi(
+            fitres, poi, grouped=True, global_impacts=global_impacts
+        )
+        scale_factor = (
+            float(re.findall(r"(\d+)MeV", poi.astype(str))[0])
+            if scale_from_poi_name
+            else scale
+        )
+        impacts = scale_factor * impacts
+        totals.append([impacts[i] for i, k in enumerate(labels) if k == "Total"][0])
+        if uncertainties == {}:
+            uncertainties = {
+                f"err_{k}": [impacts[i]]
+                for i, k in enumerate(labels)
+                if (partial_impacts_to_read is None or k in partial_impacts_to_read)
+            }
+        else:
+            for i, k in enumerate(labels):
+                if partial_impacts_to_read and k not in partial_impacts_to_read:
+                    continue
+                uncertainties[f"err_{k}"].append(impacts[i])
+        poi_values.append(scale_factor * fitres["parms"].get()[poi].value)
+
+    df = pd.DataFrame(
+        {"Name": poi_names, "value": poi_values, "err_Total": totals, **uncertainties}
+    )
+
+    if print_debug:
+        print(df)
+
+    return df
+
 
 if __name__ == "__main__":
     parser = parsing.plot_parser()
@@ -33,7 +82,6 @@ if __name__ == "__main__":
         action="store_true",
         help="Specify if the fit is performed on data, needed for correct p-value calculation",
     )
-    parser.add_argument("--poiType", type=str, default="nois", help="Parameter type")
     parser.add_argument(
         "--axes",
         nargs="+",
@@ -68,6 +116,11 @@ if __name__ == "__main__":
         default=["muonCalibration", "Calib. unc."],
         help="Uncertainty group to plot as partial error bar (in addition to data stat, which is always there)",
     )
+    parser.add_argument(
+        "--globalImpacts",
+        action="store_true",
+        help="Use the global impacts to plot uncertainties (they must be present in the input file)",
+    )
 
     parser = parsing.set_parser_default(parser, "legCols", 1)
 
@@ -77,41 +130,36 @@ if __name__ == "__main__":
     outdir = output_tools.make_plot_dir(args.outpath, args.outfolder, eoscp=args.eoscp)
 
     partialImpact, partialImpactLegend = args.partialImpact
+    partial_impacts_to_read = ["stat", partialImpact]
 
     fitresult, meta = combinetf2.io_tools.get_fitresult(args.infile, meta=True)
+    poi_names = combinetf2.io_tools.get_poi_names(meta)
     meta_info = meta["meta_info"]
-    lumi = sum([c["lumi"] for c in meta["channel_info"].values()])
+    lumi = sum([c["lumi"] for c in meta["meta_info_input"]["channel_info"].values()])
 
-    with uproot.open(f"{args.infile.replace('.hdf5','.root')}:fitresults") as utree:
-        nll = utree["nllvalfull"].array(library="np")
+    nll = fitresult["nllvalfull"]
 
     if args.infileInclusive:
-        fInclusive = combinetf2.io_tools.get_fitresult(args.infileInclusive)
-        dfInclusive = combinetf2.io_tools.read_impacts_pois(
-            fInclusive,
-            poi_type=args.poiType,
-            group=True,
-            uncertainties=["stat", partialImpact],
+        dfInclusive = get_values_and_impacts_as_panda(
+            args.infileInclusive,
+            partial_impacts_to_read=partial_impacts_to_read,
+            global_impacts=args.globalImpacts,
         )
-        with uproot.open(
-            f"{args.infileInclusive.replace('.hdf5','.root')}:fitresults"
-        ) as utree:
-            nll_inclusive = utree["nllvalfull"].array(library="np")
+        fInclusive = combinetf2.io_tools.get_fitresult(args.infileInclusive)
+        nll_inclusive = fInclusive["nllvalfull"]
 
     if args.infileNominal:
         fNominal = combinetf2.io_tools.get_fitresult(args.infileNominal)
-        dfNominal = combinetf2.io_tools.read_impacts_pois(
-            fNominal,
-            poi_type=args.poiType,
-            group=True,
-            uncertainties=["stat", partialImpact],
+        dfNominal = get_values_and_impacts_as_panda(
+            args.infileNominal,
+            partial_impacts_to_read=partial_impacts_to_read,
+            global_impacts=args.globalImpacts,
         )
 
-    df = combinetf2.io_tools.read_impacts_pois(
-        fitresult,
-        poi_type=args.poiType,
-        group=True,
-        uncertainties=["stat", partialImpact],
+    df = get_values_and_impacts_as_panda(
+        args.infile,
+        partial_impacts_to_read=partial_impacts_to_read,
+        global_impacts=args.globalImpacts,
     )
 
     df["Params"] = df["Name"].apply(lambda x: x.split("_")[0])
@@ -156,7 +204,7 @@ if __name__ == "__main__":
             )
         )
 
-        ylabels = [styles.xlabels.get(v, v) for v in args.axes]
+        ylabels = [styles.axis_labels.get(v, v) for v in args.axes]
 
         axes = []
         for i, v in enumerate(args.axes):
@@ -189,7 +237,7 @@ if __name__ == "__main__":
             df_p["yticks"] = df_p["yticks"].apply(lambda x: f"${x}$")
             ylabel = None
         elif "etaAbsEta" in axes:
-            axis_label = styles.xlabels.get("etaAbsEta", "etaAbsEta")
+            axis_label = styles.axis_labels.get("etaAbsEta", "etaAbsEta")
             axis_ranges = [
                 -2.4,
                 -2.0,
@@ -293,7 +341,7 @@ if __name__ == "__main__":
         xCenter = 0
 
         val = df_p["value"].values * scale + offset
-        err = df_p["err_total"].values * scale
+        err = df_p["err_Total"].values * scale
         err_stat = df_p["err_stat"].values * scale
         err_cal = df_p[f"err_{partialImpact}"].values * scale
 
@@ -326,7 +374,7 @@ if __name__ == "__main__":
 
             c_err_stat = dfInclusive["err_stat"].values[0] * scale
             c_err_cal = dfInclusive[f"err_{partialImpact}"].values[0] * scale
-            c_err = dfInclusive["err_total"].values[0] * scale
+            c_err = dfInclusive["err_Total"].values[0] * scale
             c = dfInclusive["value"].values[0] * scale + offset
 
             logger.info(f"Inclusive (before subtracting central) = {c}")
@@ -369,7 +417,7 @@ if __name__ == "__main__":
 
             logger.info(f"nll_inclusive = {nll_inclusive}; nll = {nll}")
 
-            chi2_stat = 2 * (nll_inclusive - nll)[0]
+            chi2_stat = 2 * (nll_inclusive - nll)
             if args.data:
                 chi2_label = r"\mathit{\chi}^2/\mathit{ndf}"
             else:
@@ -519,7 +567,7 @@ if __name__ == "__main__":
             outfile += "_preliminary"
 
         plot_tools.save_pdf_and_png(outdir, outfile)
-        plot_tools.write_index_and_log(
+        output_tools.write_index_and_log(
             outdir,
             outfile,
             analysis_meta_info={"AnalysisOutput": meta_info},

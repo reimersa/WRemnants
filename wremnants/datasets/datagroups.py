@@ -1352,7 +1352,6 @@ class Datagroups(object):
                             if matchre.match(var_name)
                         ]
                     )
-
                 self.writer.add_systematic(
                     hists,
                     var_name,
@@ -1606,7 +1605,7 @@ class Datagroups(object):
                     base_key, tail_key = key.split("Down", 1)
                     key_up = base_key + "Up" + tail_key
                     if key_up in outNames:
-                        result[base_key] = (var_map[key_up], var_map[key])
+                        result[base_key + tail_key] = (var_map[key_up], var_map[key])
                     else:
                         result[key] = var_map[key]
                 elif "Up" in key:
