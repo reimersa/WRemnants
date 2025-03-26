@@ -1176,6 +1176,9 @@ class Datagroups(object):
                     norm_proc_hist.variances(flow=True) * bin_by_bin_stat_scale**2
                 )
 
+            if self.channel not in self.writer.channels:
+                self.writer.add_channel(axes = norm_proc_hist.axes, name=self.channel)
+
             self.writer.add_process(
                 norm_proc_hist,
                 proc,
