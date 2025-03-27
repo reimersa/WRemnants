@@ -1798,20 +1798,21 @@ def setup(
                     if args.binnedScaleFactors:
                         axes = ["SF eta", "nPtBins", "SF charge"]
                     else:
-                        # axes = ["SF eta", "nPtEigenBins", "SF charge", "runSystAxis"] if "run" in fitvar else ["SF eta", "nPtEigenBins", "SF charge"]
-                        axes = ["SF eta", "nPtEigenBins", "SF charge"]
-                    # axlabels = ["eta", "pt", "q", "run"] if "run" in fitvar else ["eta", "pt", "q"]
-                    axlabels = ["eta", "pt", "q"]
+                        # axes = ["SF eta", "nPtEigenBins", "SF charge"]
+                        axes = ["SF eta", "nPtEigenBins", "SF charge", "runSystAxis"]
+                    # axlabels = ["eta", "pt", "q"]
+                    axlabels = ["eta", "pt", "q", "run"]
                     nameReplace = nameReplace + [("effStatTnP_sf_", "effStat_")]
                     scale = 1
                     groupName = "muon_eff_stat"
                     splitGroupDict = {
                         f"{groupName}_{x}": f".*effStat.*{x}" for x in effStatTypes
                     }
-                    # actionSF = lambda h: hh.addHists(
-                    #    h, hh.expand_hist_by_duplicate_axis(h, "run", "runSystAxis"),
-                    # ) if "run" in fitvar else None
-                    actionSF = None
+                    # actionSF = None
+                    actionSF = lambda h: hh.addHists(
+                        h,
+                        hh.expand_hist_by_duplicate_axis(h, "run", "runSystAxis"),
+                    )
                 if args.effStatLumiScale and "Syst" not in name:
                     scale /= math.sqrt(args.effStatLumiScale)
 
