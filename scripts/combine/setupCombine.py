@@ -311,13 +311,12 @@ def make_parser(parser=None):
     parser.add_argument(
         "--fitresult",
         type=str,
+        nargs="+",
         default=None,
-        help="Use data and covariance matrix from fitresult (for making a theory fit)",
-    )
-    parser.add_argument(
-        "--noMCStat",
-        action="store_true",
-        help="Do not include MC stat uncertainty in covariance for theory fit (only when using --fitresult)",
+        help="""
+        Use data and covariance matrix from fitresult (e.g. for making a theory fit). 
+        Following the fitresult filename, a list of channels can be provided to only take the covariance across these channels (default is all channels).
+        """,
     )
     parser.add_argument(
         "--fakerateAxes",
@@ -1179,7 +1178,7 @@ def setup(
         exclude_bin_by_bin_stat="signal_samples" if args.explicitSignalMCstat else None,
         bin_by_bin_stat_scale=args.binByBinStatScaleForMW if wmass else 1.0,
         fitresult_data=fitresult_data,
-        masked=xnorm,
+        masked=xnorm and fitresult_data is None,
     )
 
     if args.doStatOnly and isUnfolding and not isPoiAsNoi:
@@ -1298,7 +1297,7 @@ def setup(
         muRmuFPolVar_helper.add_theoryAgnostic_uncertainty()
 
     if args.explicitSignalMCstat:
-        if xnorm and not args.fitresult:
+        if xnorm and args.fitresult is None:
             # use variations from reco histogram and apply them to xnorm
             source = ("nominal", f"{inputBaseName}_yieldsUnfolding")
             # need to find the reco variables that correspond to the reco fit, reco fit must be done with variables in same order as gen bins
@@ -2296,25 +2295,34 @@ if __name__ == "__main__":
         allow_negative_expectation=args.allowNegativeExpectation,
     )
 
-    if args.fitresult:
+    if args.fitresult is not None:
         # set data from external fitresult file
         if len(args.inputFile) > 1:
             logger.warning(
                 "Theoryfit for more than one channels is currently experimental"
             )
         fitresult, fitresult_meta = combinetf2.io_tools.get_fitresult(
-            args.fitresult, meta=True
-        )
-        fitresult_data_dict, fitresult_data_cov = (
-            combinetf2.io_tools.get_fitresult_data(fitresult)
+            args.fitresult[0], meta=True
         )
 
-        writer.add_data_covariance(
-            fitresult_data_cov.get(),
-            add_bin_by_bin_stat_to_data_cov=not (
-                args.noMCStat or args.explicitSignalMCstat
-            ),
+        if len(args.fitresult) > 1:
+            channels = args.fitresult[1:]
+            fitresult_lumi = [
+                fitresult_meta["meta_info_input"]["channel_info"][c]["lumi"]
+                for c in channels
+            ]
+        else:
+            channels = None
+            fitresult_lumi = [
+                c["lumi"]
+                for c in fitresult_meta["meta_info_input"]["channel_info"].items()
+            ]
+
+        fitresult_hist, fitresult_cov = combinetf2.io_tools.get_postfit_hist_cov(
+            fitresult, channels=channels
         )
+
+        writer.add_data_covariance(fitresult_cov)
 
     # loop over all files
     outnames = []
@@ -2332,9 +2340,9 @@ if __name__ == "__main__":
 
         channel = f"ch{i}"
 
-        if args.fitresult:
-            lumi = fitresult_meta["meta_info_input"]["channel_info"][channel]["lumi"]
-            fitresult_data = fitresult_data_dict[channel].get()
+        if args.fitresult is not None:
+            lumi = fitresult_lumi[i]
+            fitresult_data = fitresult_hist[i]
         else:
             lumi = None
             fitresult_data = None
