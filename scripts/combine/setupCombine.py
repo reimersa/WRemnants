@@ -168,6 +168,18 @@ def make_parser(parser=None):
         help="Regular expression to keep some systematics, overriding --excludeNuisances. Can be used to keep only some systs while excluding all the others with '.*'",
     )
     parser.add_argument(
+        "--absorbNuisancesInCovariance",
+        type=str,
+        default="",
+        help="Regular expression to absorb some systematics in the data covariance rather than keep them as explicit nuisance parameters",
+    )
+    parser.add_argument(
+        "--keepExplicitNuisances",
+        type=str,
+        default="",
+        help="Regular expression to keep some systematics as explicit nuisance parameters, overriding --absorbNuisancesInCovariance.  Can be used to keep only some systs as nuisances while absorbing all the others into the covariance with '.*'",
+    )
+    parser.add_argument(
         "-n",
         "--baseName",
         type=str,
@@ -382,6 +394,11 @@ def make_parser(parser=None):
         action="store_true",
         default=False,
         help="Set up fit without theory uncertainties",
+    )
+    parser.add_argument(
+        "--addMCStatToCovariance",
+        action="store_true",
+        help="Add the MC statistical uncertainty to the data covariance (as an alternative to Barlow-Beeston lite)",
     )
     parser.add_argument(
         "--explicitSignalMCstat",
@@ -725,6 +742,12 @@ def make_parser(parser=None):
         action="store_true",
         help="convert helicity cross sections to angular coefficients",
     )
+    parser.add_argument(
+        "--systematicType",
+        choices=["log_normal", "normal"],
+        default="log_normal",
+        help="probability density for systematic variations",
+    )
     parser = make_subparsers(parser)
 
     return parser
@@ -994,7 +1017,12 @@ def setup(
             "ptTheory": f".*QCD.*|.*resum.*|.*TNP.*|mass.*{label}.*",
         }
     )
-    datagroups.setCustomSystForCard(args.excludeNuisances, args.keepNuisances)
+    datagroups.setCustomSystForCard(
+        args.excludeNuisances,
+        args.keepNuisances,
+        args.absorbNuisancesInCovariance,
+        args.keepExplicitNuisances,
+    )
 
     datagroups.lumiScale = inputLumiScale
     datagroups.lumiScaleVarianceLinearly = args.lumiScaleVarianceLinearly
@@ -2293,6 +2321,8 @@ if __name__ == "__main__":
         sparse=args.sparse,
         # exponential_transfor=args.exponentialTransform, #TODO: exponential transform global or per channel?
         allow_negative_expectation=args.allowNegativeExpectation,
+        systematic_type=args.systematicType,
+        add_bin_by_bin_stat_to_data_cov=args.addMCStatToCovariance,
     )
 
     if args.fitresult is not None:

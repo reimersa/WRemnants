@@ -108,6 +108,8 @@ class Datagroups(object):
         self.channel = "ch0"
         self.excludeSyst = None
         self.keepSyst = None
+        self.absorbSyst = None
+        self.explicitSyst = None
         self.customSystMapping = {}
 
         self.writer = None
@@ -1103,8 +1105,11 @@ class Datagroups(object):
         )
 
     ## Functions to customize systs to be added in card, mainly for tests
-    def setCustomSystForCard(self, exclude=None, keep=None):
-        for regex, name in zip((keep, exclude), ("keepSyst", "excludeSyst")):
+    def setCustomSystForCard(self, exclude=None, keep=None, absorb=None, explicit=None):
+        for regex, name in zip(
+            (keep, exclude, absorb, explicit),
+            ("keepSyst", "excludeSyst", "absorbSyst", "explicitSyst"),
+        ):
             if regex in self.customSystMapping:
                 regex = self.customSystMapping[regex]
             if regex:
@@ -1121,6 +1126,18 @@ class Datagroups(object):
                 return False
             else:
                 logger.info(f"   Excluding nuisance: {name}")
+                return True
+        else:
+            return False
+
+    def isAbsorbedNuisance(self, name):
+        # note, re.match search for a match from the beginning, so if x="test" x.match("mytestPDF1") will NOT match
+        # might use re.search instead to be able to match from anywhere inside the name
+        if self.absorbSyst != None and self.absorbSyst.match(name):
+            if self.explicitSyst != None and self.explicitSyst.match(name):
+                return False
+            else:
+                logger.info(f"   Absorbing nuisance in covariance: {name}")
                 return True
         else:
             return False
@@ -1375,6 +1392,7 @@ class Datagroups(object):
                     kfactor=scale,
                     noi=noi,
                     constrained=not noConstraint,
+                    add_to_data_covariance=self.isAbsorbedNuisance(name),
                 )
 
     def systHists(
