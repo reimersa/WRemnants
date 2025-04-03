@@ -417,7 +417,7 @@ jobs:
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/setupCombine.py 
           -i $HIST_FILE -o $WREMNANTS_OUTDIR/WMass_eta_pt_charge_poiAsNoi/ 
-          --fitresult $WREMNANTS_OUTDIR/WMass_eta_pt_charge_poiAsNoi/fitresults.hdf5
+          --fitresult $WREMNANTS_OUTDIR/WMass_eta_pt_charge_poiAsNoi/fitresults.hdf5 ch0_masked
           --fitvar absEtaGen-ptGen-qGen --postfix theoryfit --baseName postfsr --explicitSignalMCstat
       
       - name: run theory fit
@@ -873,7 +873,7 @@ jobs:
       - name: alphaS impacts
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run.sh combinetf2_plot_pulls_and_impacts.py
-          ${WREMNANTS_OUTDIR}/ZMassDilepton_ptll_yll/fitresults.hdf5 --title CMS --subtitle Preliminaryf
+          ${WREMNANTS_OUTDIR}/ZMassDilepton_ptll_yll/fitresults.hdf5 --title CMS --subtitle Preliminary
           --showNumbers --pullrange '2.1' --config utilities/styles/styles.py --oneSidedImpacts --grouping max 
           -o $WEB_DIR/$PLOT_DIR --otherExtensions pdf png -n 50 --scaleImpacts 1.5 
 
@@ -922,8 +922,8 @@ jobs:
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/setupCombine.py 
           -i $HIST_FILE -o $WREMNANTS_OUTDIR/ZMassDilepton_ptll_yll_poiAsNoi/ 
-          --fitresult $WREMNANTS_OUTDIR/ZMassDilepton_ptll_yll_poiAsNoi/fitresults.hdf5 --fitAlphaS
-          --fitvar ptVGen-absYVGen --postfix theoryfit --baseName prefsr
+          --fitresult $WREMNANTS_OUTDIR/ZMassDilepton_ptll_yll_poiAsNoi/fitresults.hdf5 ch0_masked 
+          --fitAlphaS --fitvar ptVGen-absYVGen --postfix theoryfit --baseName prefsr
       
       - name: run theory fit
         run: >-
@@ -1029,8 +1029,8 @@ jobs:
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/setupCombine.py 
           -i $HIST_FILE -o $WREMNANTS_OUTDIR/ZMassDilepton_ptll_yll_unfolding/ 
-          --fitresult $WREMNANTS_OUTDIR/ZMassDilepton_ptll_yll_unfolding/fitresults.hdf5 --fitAlphaS
-          --fitvar ptVGen-absYVGen --postfix theoryfit --baseName prefsr --explicitSignalMCstat
+          --fitresult $WREMNANTS_OUTDIR/ZMassDilepton_ptll_yll_unfolding/fitresults.hdf5 ch0_masked
+          --fitAlphaS --fitvar ptVGen-absYVGen --postfix theoryfit --baseName prefsr --explicitSignalMCstat
       
       - name: run theory fit
         run: >-

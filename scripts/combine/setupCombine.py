@@ -2345,7 +2345,7 @@ if __name__ == "__main__":
             channels = None
             fitresult_lumi = [
                 c["lumi"]
-                for c in fitresult_meta["meta_info_input"]["channel_info"].items()
+                for c in fitresult_meta["meta_info_input"]["channel_info"].values()
             ]
 
         fitresult_hist, fitresult_cov = combinetf2.io_tools.get_postfit_hist_cov(
