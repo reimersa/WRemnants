@@ -1174,6 +1174,11 @@ jobs:
           echo "HIST_FILE_DILEPTON=${WREMNANTS_OUTDIR}/${OUTFILE_DILEPTON}" >> $GITHUB_ENV
           echo "LUMI_SCALE=$LUMI_SCALE" >> $GITHUB_ENV
 
+      - uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+          lfs: 'true'
+
       - name: wmass combined setup
         run: >- 
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run_python.sh scripts/combine/setupCombine.py
