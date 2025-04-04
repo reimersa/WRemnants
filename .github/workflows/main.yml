@@ -642,7 +642,7 @@ jobs:
       - name: lowpu combine unfolded xsec plot
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run.sh combinetf2_plot_hists.py --config utilities/styles/styles.py
-          $COMBINED_DIR/Combination_WMass_lowPUZMass_lowPU_ptll/fitresults.hdf5 -o $WEB_DIR/$PLOT_DIR/lowPU 
+          $COMBINED_DIR/Combination_WMass_lowPUZMass_lowPU_ptll/fitresults.hdf5 -o $WEB_DIR/$PLOT_DIR/lowPU
           --rrange 0.0 2.0 --unfoldedXsec --noUncertainty --noChisq --legCols 1 --noSciy --titlePos 0 --title CMS --subtitle Preliminary
 
   wlike:
@@ -702,13 +702,13 @@ jobs:
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run.sh combinetf2_plot_hists.py --config utilities/styles/styles.py
           $WREMNANTS_OUTDIR/ZMassWLike_eta_pt_charge/fitresults_uncorr.hdf5 --title CMS --titlePos 1 --subtitle Preliminary
-          -o $WEB_DIR/$PLOT_DIR --legCols 6 --yscale 1.2  --prefit --legCol 6 --legSize large
+          -o $WEB_DIR/$PLOT_DIR --legCols 6 --yscale 1.2  --prefit --legCol 6 --legSize large -m Basemodel
 
       - name: wlike postfit plot
         run: >- 
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run.sh combinetf2_plot_hists.py --config utilities/styles/styles.py
           $WREMNANTS_OUTDIR/ZMassWLike_eta_pt_charge/fitresults_uncorr.hdf5 --title CMS --titlePos 1 --subtitle Preliminary
-          -o $WEB_DIR/$PLOT_DIR --legCols 6 --yscale 1.2 --rrange 1.03 0.97 --binSeparationLines -2.2 -2.1 1.2 1.3
+          -o $WEB_DIR/$PLOT_DIR --legCols 6 --yscale 1.2 --rrange 1.03 0.97 --binSeparationLines -2.2 -2.1 1.2 1.3 -m Basemodel
 
       - name: wlike combine impacts
         run: >-
@@ -809,7 +809,7 @@ jobs:
       - name: dilepton postfit mll-etaAbsEta plot
         run: >- 
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run.sh combinetf2_plot_hists.py --config utilities/styles/styles.py
-          $WREMNANTS_OUTDIR/ZMassDilepton_etaAbsEta_mll/fitresults.hdf5 -o $WEB_DIR/$PLOT_DIR 
+          $WREMNANTS_OUTDIR/ZMassDilepton_etaAbsEta_mll/fitresults.hdf5 -o $WEB_DIR/$PLOT_DIR -m Basemodel
           --yscale 1.4 --binSeparationLines -0.6 0.0 --titlePos 1 --title CMS --subtitle Preliminary
 
       - name: dilepton postfit mll plot
@@ -908,14 +908,14 @@ jobs:
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run.sh combinetf2_plot_hists_cov.py 
           $WREMNANTS_OUTDIR/ZMassDilepton_ptll_yll_poiAsNoi/fitresults.hdf5
-          -o $WEB_DIR/$PLOT_DIR/unfolding_dilepton --title CMS --subtitle Preliminary  --postfix poiAsNoi
+          -o $WEB_DIR/$PLOT_DIR/unfolding_dilepton --title CMS --subtitle Preliminary --postfix poiAsNoi
           -m Project ch0_masked ptVGen -m Project ch0_masked absYVGen --config utilities/styles/styles.py
       
       - name: plot xsec corrrelation
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run.sh combinetf2_plot_hists_cov.py 
           $WREMNANTS_OUTDIR/ZMassDilepton_ptll_yll_poiAsNoi/fitresults.hdf5
-          -o $WEB_DIR/$PLOT_DIR/unfolding_dilepton --title CMS --subtitle Preliminary  --postfix poiAsNoi
+          -o $WEB_DIR/$PLOT_DIR/unfolding_dilepton --title CMS --subtitle Preliminary --postfix poiAsNoi
           -m Project ch0_masked ptVGen -m Project ch0_masked absYVGen --config utilities/styles/styles.py --correlation
       
       - name: setup theory-fit tensor
@@ -1075,12 +1075,12 @@ jobs:
       - name: dilepton prefit plot
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run.sh combinetf2_plot_hists.py $WREMNANTS_OUTDIR/ZMassDilepton_ptll_yll/fitresults.hdf5 
-          --config utilities/styles/styles.py -o $WEB_DIR/$PLOT_DIR --yscale 1.2 --prefit --title CMS --subtitle Preliminary
+          --config utilities/styles/styles.py -o $WEB_DIR/$PLOT_DIR --yscale 1.2 --prefit --title CMS --subtitle Preliminary -m Basemodel
 
       - name: dilepton postfit plot
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run.sh combinetf2_plot_hists.py $WREMNANTS_OUTDIR/ZMassDilepton_ptll_yll/fitresults.hdf5 
-          --config utilities/styles/styles.py -o $WEB_DIR/$PLOT_DIR --yscale 1.2 --title CMS --subtitle Preliminary
+          --config utilities/styles/styles.py -o $WEB_DIR/$PLOT_DIR --yscale 1.2 --title CMS --subtitle Preliminary -m Basemodel
 
       - name: dilepton plotting ptll
         run: >-
@@ -1120,7 +1120,7 @@ jobs:
         run: >- 
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run.sh combinetf2_plot_hists.py --config utilities/styles/styles.py 
           $WREMNANTS_OUTDIR/ZMassDilepton_ptll/fitresults_from_ZMassWLike_eta_pt_charge.hdf5 --postfix uncorr_fromWLike 
-          -o $WEB_DIR/$PLOT_DIR --legCols 1 --yscale 1.2 --rrange 1.03 0.97 --title CMS --subtitle Preliminary
+          -o $WEB_DIR/$PLOT_DIR --legCols 1 --yscale 1.2 --rrange 1.03 0.97 --title CMS --subtitle Preliminary -m Basemodel
 
   gen:
     # The type of runner that the job will run on
