@@ -1769,6 +1769,8 @@ def setup(
             ]
             for name in allEffTnP:
                 if "Syst" in name:
+                    # axes = ["reco-tracking-idip-trigger-iso", "n_syst_variations", "runSystAxis"]
+                    # axlabels = ["WPSYST", "_etaDecorr", "run"]
                     axes = ["reco-tracking-idip-trigger-iso", "n_syst_variations"]
                     axlabels = ["WPSYST", "_etaDecorr"]
                     nameReplace = [
@@ -1788,6 +1790,10 @@ def setup(
                         for x in list(effTypesNoIso + ["iso"])
                     }
                     actionSF = None
+                    # actionSF = lambda h: hh.addHists(
+                    #    h,
+                    #    hh.expand_hist_by_duplicate_axis(h, "run", "runSystAxis"),
+                    # )
                 else:
                     nameReplace = (
                         []
@@ -1798,21 +1804,21 @@ def setup(
                     if args.binnedScaleFactors:
                         axes = ["SF eta", "nPtBins", "SF charge"]
                     else:
-                        # axes = ["SF eta", "nPtEigenBins", "SF charge"]
-                        axes = ["SF eta", "nPtEigenBins", "SF charge", "runSystAxis"]
-                    # axlabels = ["eta", "pt", "q"]
-                    axlabels = ["eta", "pt", "q", "run"]
+                        axes = ["SF eta", "nPtEigenBins", "SF charge"]
+                        # axes = ["SF eta", "nPtEigenBins", "SF charge", "runSystAxis"]
+                    axlabels = ["eta", "pt", "q"]
+                    # axlabels = ["eta", "pt", "q", "run"]
                     nameReplace = nameReplace + [("effStatTnP_sf_", "effStat_")]
                     scale = 1
                     groupName = "muon_eff_stat"
                     splitGroupDict = {
                         f"{groupName}_{x}": f".*effStat.*{x}" for x in effStatTypes
                     }
-                    # actionSF = None
-                    actionSF = lambda h: hh.addHists(
-                        h,
-                        hh.expand_hist_by_duplicate_axis(h, "run", "runSystAxis"),
-                    )
+                    actionSF = None
+                    # actionSF = lambda h: hh.addHists(
+                    #    h,
+                    #    hh.expand_hist_by_duplicate_axis(h, "run", "runSystAxis"),
+                    # )
                 if args.effStatLumiScale and "Syst" not in name:
                     scale /= math.sqrt(args.effStatLumiScale)
 
@@ -2052,13 +2058,13 @@ def setup(
     prefireSystAxes = ["downUpVar"]
     prefireSystLabels = ["downUpVar"]
     prefireSystAction = None
-    if "run" in fitvar:
-        prefireSystAxes = ["runSystAxis"] + prefireSystAxes
-        prefireSystLabels = ["run"] + prefireSystLabels
-        prefireSystAction = lambda h: hh.addHists(
-            h,
-            hh.expand_hist_by_duplicate_axis(h, "run", "runSystAxis"),
-        )
+    # if "run" in fitvar:
+    #     prefireSystAxes = ["runSystAxis"] + prefireSystAxes
+    #     prefireSystLabels = ["run"] + prefireSystLabels
+    #     prefireSystAction = lambda h: hh.addHists(
+    #         h,
+    #         hh.expand_hist_by_duplicate_axis(h, "run", "runSystAxis"),
+    #     )
     datagroups.addSystematic(
         "muonL1PrefireSyst",
         processes=["MCnoQCD"],
@@ -2077,13 +2083,13 @@ def setup(
         ["etaPhiReg", "downUpVar"] if era == "2016PostVFP" else ["downUpVar"]
     )
     prefireStatAction = None
-    if "run" in fitvar:
-        prefireStatAxes = ["runSystAxis"] + prefireStatAxes
-        prefireStatLabels = ["run"] + prefireStatLabels
-        prefireStatAction = lambda h: hh.addHists(
-            h,
-            hh.expand_hist_by_duplicate_axis(h, "run", "runSystAxis"),
-        )
+    # if "run" in fitvar:
+    #     prefireStatAxes = ["runSystAxis"] + prefireStatAxes
+    #     prefireStatLabels = ["run"] + prefireStatLabels
+    #     prefireStatAction = lambda h: hh.addHists(
+    #         h,
+    #         hh.expand_hist_by_duplicate_axis(h, "run", "runSystAxis"),
+    #     )
     datagroups.addSystematic(
         "muonL1PrefireStat",
         processes=["MCnoQCD"],
