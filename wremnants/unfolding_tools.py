@@ -204,7 +204,8 @@ def add_xnorm_histograms(
     if add_helicity_axis:
         df_xnorm = theoryAgnostic_tools.define_helicity_weights(
             df_xnorm,
-            filename=f"{common.data_dir}/angularCoefficients/w_z_moments_unfoldingBinning.hdf5",
+            is_z=dataset_name == "ZmumuPostVFP",
+            filename=f"{common.data_dir}/angularCoefficients/w_z_helicity_xsecs_scetlib_dyturboCorr_maxFiles_m1_unfoldingBinning.hdf5",
         )
 
         from wremnants.helicity_utils import axis_helicity_multidim

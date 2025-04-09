@@ -176,6 +176,7 @@ def build_graph(df, dataset):
             differential.get_dilepton_axes(
                 ["ptVGen", "absYVGen"],
                 common.get_gen_axes(common.get_dilepton_ptV_binning(), True, flow=True),
+                "prefsr",
                 add_out_of_acceptance_axis=False,
             )
         )

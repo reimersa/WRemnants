@@ -276,7 +276,8 @@ def get_binning_fakes_relIso(high_iso_bins=False):
 
 def get_dilepton_ptV_binning(fine=False):
     return (
-        [0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 20, 23, 27, 32, 40, 54, 100]
+        # [0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 20, 23, 27, 32, 40, 54, 100]
+        [0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 20, 23, 27, 33, 100]
         if not fine
         else range(60)
     )

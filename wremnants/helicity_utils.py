@@ -29,14 +29,14 @@ axis_helicity_multidim = hist.axis.Integer(
 
 
 # creates the helicity weight tensor
-def makehelicityWeightHelper(is_w_like=False, filename=None):
+def makehelicityWeightHelper(is_z=False, filename=None):
     if filename is None:
         filename = f"{common.data_dir}/angularCoefficients/w_z_helicity_xsecs_theoryAgnosticBinning_scetlib_dyturboCorr_maxFiles_m1.hdf5"
 
     with h5py.File(filename, "r") as ff:
         out = input_tools.load_results_h5py(ff)
 
-    hist_helicity_xsec_scales = out["Z"] if is_w_like else out["W"]
+    hist_helicity_xsec_scales = out["Z"] if is_z else out["W"]
 
     corrh = helicity_xsec_to_angular_coeffs(hist_helicity_xsec_scales)
 

@@ -107,6 +107,9 @@ def get_dilepton_axes(gen_vars, gen_axes, gen_level, add_out_of_acceptance_axis=
 
     # selections for out of fiducial region, use overflow bin in ptVGen (i.e. not treated as out of acceptance)
     for v in gen_vars:
+        if v == "helicitySig":
+            # helicity is added as a tensor axis
+            continue
         var = v.replace("qVGen", "charge").replace("VGen", "")
         axes.append(gen_axes[v])
         cols.append(f"{gen_level}V_{var}")

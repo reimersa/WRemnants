@@ -259,6 +259,8 @@ if args.unfolding:
     if args.fitresult:
         unfolding_corr_helper = unfolding_tools.reweight_to_fitresult(args.fitresult)
 
+    add_helicity_axis = "helicitySig" in args.unfoldingAxes
+
 for a in args.axes:
     if a not in all_axes.keys():
         logger.error(
@@ -498,7 +500,7 @@ def build_graph(df, dataset):
                     qcdScaleByHelicity_helper,
                     [a for a in unfolding_axes[level] if a.name != "acceptance"],
                     [c for c in unfolding_cols[level] if c != f"{level}_acceptance"],
-                    add_helicity_axis="helicitySig" in args.unfoldingAxes,
+                    add_helicity_axis=add_helicity_axis,
                     base_name=level,
                 )
                 if not args.poiAsNoi:
@@ -837,7 +839,9 @@ def build_graph(df, dataset):
             )
             axis_helicity = helicity_utils.axis_helicity_multidim
 
-            df = theoryAgnostic_tools.define_helicity_weights(df)
+            df_theory_agnostic = theoryAgnostic_tools.define_helicity_weights(
+                df, is_z=True
+            )
             noiAsPoiHistName = Datagroups.histName(
                 "nominal", syst="yieldsTheoryAgnostic"
             )
@@ -845,18 +849,12 @@ def build_graph(df, dataset):
                 f"Creating special histogram '{noiAsPoiHistName}' for theory agnostic to treat POIs as NOIs"
             )
             results.append(
-                df.HistoBoost(
+                df_theory_agnostic.HistoBoost(
                     noiAsPoiHistName,
                     [*axes, *theoryAgnostic_axes],
                     [*cols, *theoryAgnostic_cols, "nominal_weight_helicity"],
                     tensor_axes=[axis_helicity],
                 )
-            )
-
-        if "helicitySig" in getattr(args, "genAxes", []):
-            df = theoryAgnostic_tools.define_helicity_weights(
-                df,
-                filename=f"{common.data_dir}/angularCoefficients/w_z_moments_unfoldingBinning.hdf5",
             )
 
     # histograms for corrections/uncertainties for pixel hit multiplicity
@@ -894,6 +892,15 @@ def build_graph(df, dataset):
     results.append(hNValidPixelHitsNonTrig)
 
     if args.unfolding and args.poiAsNoi and dataset.name == "ZmumuPostVFP":
+        if add_helicity_axis:
+            df_unfolding = theoryAgnostic_tools.define_helicity_weights(
+                df,
+                is_z=True,
+                filename=f"{common.data_dir}/angularCoefficients/w_z_helicity_xsecs_scetlib_dyturboCorr_maxFiles_m1_unfoldingBinning.hdf5",
+            )
+        else:
+            df_unfolding = df
+
         for level in args.unfoldingLevels:
             noiAsPoiHistName = Datagroups.histName(
                 "nominal", syst=f"{level}_yieldsUnfolding"
@@ -903,11 +910,11 @@ def build_graph(df, dataset):
             )
             yield_axes = [*nominal_axes, *unfolding_axes[level]]
             yield_cols = [*nominal_cols, *unfolding_cols[level]]
-            if "helicitySig" in getattr(args, "genAxes", []):
+            if add_helicity_axis:
                 from wremnants.helicity_utils import axis_helicity_multidim
 
                 results.append(
-                    df.HistoBoost(
+                    df_unfolding.HistoBoost(
                         noiAsPoiHistName,
                         yield_axes,
                         [*yield_cols, "nominal_weight_helicity"],
@@ -916,7 +923,7 @@ def build_graph(df, dataset):
                 )
             else:
                 results.append(
-                    df.HistoBoost(
+                    df_unfolding.HistoBoost(
                         noiAsPoiHistName,
                         yield_axes,
                         [*yield_cols, "nominal_weight"],

@@ -805,7 +805,7 @@ def build_graph(df, dataset):
     )
 
     if isZ and args.theoryAgnostic:
-        df = theoryAgnostic_tools.define_helicity_weights(df, is_w_like=True)
+        df = theoryAgnostic_tools.define_helicity_weights(df, is_z=True)
 
     if not args.noRecoil:
         leps_uncorr = [

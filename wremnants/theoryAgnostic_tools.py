@@ -32,11 +32,9 @@ def select_fiducial_space(
     return df
 
 
-def define_helicity_weights(df, is_w_like=False, filename=None):
+def define_helicity_weights(df, is_z=False, filename=None):
     # define the helicity tensor, here nominal_weight will only have theory weights, no experimental pieces, it is defined in theory_tools.define_theory_weights_and_corrs
-    weightsByHelicity_helper = helicity_utils.makehelicityWeightHelper(
-        is_w_like, filename
-    )
+    weightsByHelicity_helper = helicity_utils.makehelicityWeightHelper(is_z, filename)
     df = df.Define(
         "helWeight_tensor",
         weightsByHelicity_helper,
@@ -74,7 +72,7 @@ def add_xnorm_histograms(
         df_xnorm, dataset_name, corr_helpers, args
     )
     # define the helicity tensor, here nominal_weight will only have theory weights, no experimental pieces, it is defined in theory_tools.define_theory_weights_and_corrs
-    df_xnorm = define_helicity_weights(df_xnorm)
+    df_xnorm = define_helicity_weights(df_xnorm, is_z=dataset_name == "ZmumuPostVFP")
     df_xnorm = df_xnorm.DefinePerSample("xnorm", "0.5")
     axis_xnorm = hist.axis.Regular(
         1, 0.0, 1.0, name="count", underflow=False, overflow=False
