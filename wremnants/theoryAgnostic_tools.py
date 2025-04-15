@@ -44,13 +44,14 @@ def define_helicity_weights(df, is_z=False, filename=None):
             "ptVgen",
             "chargeVgen",
             "csSineCosThetaPhigen",
-            "nominal_weight",
         ],
     )
+
     df = df.Define(
         "nominal_weight_helicity",
         "wrem::scalarmultiplyHelWeightTensor(nominal_weight, helWeight_tensor)",
     )
+
     return df
 
 

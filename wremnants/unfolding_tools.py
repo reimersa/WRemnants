@@ -237,6 +237,8 @@ def add_xnorm_histograms(
         nhelicity=9,
     )
 
+    return df_xnorm
+
 
 def reweight_to_fitresult(filename, result=None, channel="ch0", flow=True):
     import wums.boostHistHelpers as hh
