@@ -316,18 +316,39 @@ if __name__ == "__main__":
             )
             # ylabel="$\mathrm{sign}(\mathit{\eta}^{\mu^+}) + \mathrm{sign}(\mathit{\eta}^{\mu^-})$"
         elif "run" in axes:
-            # axis_ranges = {
-            #     0: r"Data FG: 8.07 $\mathrm{fb}^{-1}$",
-            #     1: r"Data H: 8.74 $\mathrm{fb}^{-1}$",
-            #     #0: r"Data v1: 8.4 $\mathrm{fb}^{-1}$",
-            #     #1: r"Data v2: 8.4 $\mathrm{fb}^{-1}$",
-            # }
-            axis_ranges = {
-                0: r"FG v1: 4.33 $\mathrm{fb}^{-1}$",
-                1: r"FG v2: 3.74 $\mathrm{fb}^{-1}$",
-                2: r" H v1: 4.19 $\mathrm{fb}^{-1}$",
-                3: r" H v2: 4.55 $\mathrm{fb}^{-1}$",
-            }
+            nRunBins = df.shape[0]
+            if nRunBins == 2:
+                axis_ranges = {
+                    0: r"Data FG: 8.07 $\mathrm{fb}^{-1}$",
+                    1: r"Data H: 8.74 $\mathrm{fb}^{-1}$",
+                    # 0: r"Data v1: 8.4 $\mathrm{fb}^{-1}$",
+                    # 1: r"Data v2: 8.4 $\mathrm{fb}^{-1}$",
+                }
+            elif nRunBins == 3:
+                axis_ranges = {
+                    0: r"0: 4.33 $\mathrm{fb}^{-1}$",
+                    1: r"1: 7.94 $\mathrm{fb}^{-1}$",
+                    2: r"2: 4.55 $\mathrm{fb}^{-1}$",
+                }
+            elif nRunBins == 4:
+                axis_ranges = {
+                    0: r"FG v1: 4.33 $\mathrm{fb}^{-1}$",
+                    1: r"FG v2: 3.74 $\mathrm{fb}^{-1}$",
+                    2: r" H v1: 4.19 $\mathrm{fb}^{-1}$",
+                    3: r" H v2: 4.55 $\mathrm{fb}^{-1}$",
+                }
+            elif nRunBins == 5:
+                axis_ranges = {
+                    0: r"0: 2.33 $\mathrm{fb}^{-1}$",
+                    1: r"1: 3.92 $\mathrm{fb}^{-1}$",
+                    2: r"2: 3.90 $\mathrm{fb}^{-1}$",
+                    3: r"3: 3.92 $\mathrm{fb}^{-1}$",
+                    4: r"4: 2.74 $\mathrm{fb}^{-1}$",
+                }
+            else:
+                raise RuntimeError(
+                    f"Found {nRunBins} run bins, which is not yet implemented."
+                )
             df_p["yticks"] = (
                 df_p["run"].apply(lambda x: str(axis_ranges[x])).astype(str)
             )

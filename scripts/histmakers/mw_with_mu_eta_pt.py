@@ -774,9 +774,13 @@ def build_graph(df, dataset):
 
     if args.addRunAxis:
         # run_edges = [278768, 280385, 284044]
+        # lumi_edges = [0.0, 0.48013, 1.0]
+        # run_edges = [278768, 279767, 283270, 284044]
+        # lumi_edges = [0.0, 0.25749, 0.72954, 1.0]
+        # run_edges = [278768, 279767, 280385, 283270, 284044]
         # lumi_edges = [0.0, 0.25749, 0.48013, 0.72954, 1.0]
-        run_edges = [278768, 279767, 280385, 283270, 284044]
-        lumi_edges = [0.0, 0.25749, 0.48013, 0.72954, 1.0]
+        run_edges = [278768, 279588, 280017, 282037, 283478, 284044]
+        lumi_edges = [0.0, 0.13871, 0.371579, 0.6038544, 0.836724, 1.0]
         run_bin_centers = [
             int(0.5 * (run_edges[i + 1] + run_edges[i]))
             for i in range(len(run_edges) - 1)

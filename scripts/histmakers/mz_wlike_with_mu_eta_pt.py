@@ -474,9 +474,13 @@ def build_graph(df, dataset):
 
     if args.addRunAxis:
         # run_edges = [278768, 280385, 284044]
-        # lumi_edges = [0.0, 0.25749, 0.48013, 0.72954, 1.0]
+        # lumi_edges = [0.0, 0.48013, 1.0]
+        # run_edges = [278768, 279767, 283270, 284044]
+        # lumi_edges = [0.0, 0.25749, 0.72954, 1.0]
         run_edges = [278768, 279767, 280385, 283270, 284044]
         lumi_edges = [0.0, 0.25749, 0.48013, 0.72954, 1.0]
+        # run_edges = [278768, 279588, 280017, 282037, 283478, 284044]
+        # lumi_edges = [0.0, 0.13871, 0.371579, 0.6038544, 0.836724, 1.0]
         run_bin_centers = [
             int(0.5 * (run_edges[i + 1] + run_edges[i]))
             for i in range(len(run_edges) - 1)
@@ -985,77 +989,77 @@ def build_graph(df, dataset):
         )
         results.append(nominal_bin)
         ###
-        df = df.Define(
-            "trigMuons_recouT0",
-            "wrem::zqtproj0(trigMuons_pt0,trigMuons_phi0,nonTrigMuons_pt0,nonTrigMuons_phi0)",
-        )
-        df = df.Define(
-            "nonTrigMuons_recouT0",
-            "wrem::zqtproj0(nonTrigMuons_pt0,nonTrigMuons_phi0,trigMuons_pt0,trigMuons_phi0)",
-        )
-        axis_ut = hist.axis.Regular(
-            50, -40, 60, overflow=True, underflow=True, name="ut"
-        )
-        axis_utnt = hist.axis.Regular(
-            50, -40, 60, overflow=True, underflow=True, name="utNonTrig"
-        )
-        axis_eta_coarse = hist.axis.Regular(
-            6, -2.4, 2.4, name="eta", underflow=False, overflow=False
-        )
-        nominal_uT_isoMT = df.HistoBoost(
-            "nominal_uT_isoMT",
-            [
-                axis_eta_coarse,
-                axis_pt,
-                common.axis_charge,
-                axis_trigPassIso,
-                axis_nonTrigPassIso,
-                common.axis_passMT,
-                axis_ut,
-                axis_utnt,
-            ],
-            [
-                *cols,
-                "trigMuons_passIso0",
-                "nonTrigMuons_passIso0",
-                "passWlikeMT",
-                "trigMuons_recouT0",
-                "nonTrigMuons_recouT0",
-                "nominal_weight",
-            ],
-        )
-        results.append(nominal_uT_isoMT)
-        # now without SF, for data it doesn't matter
-        if dataset.is_data:
-            df = df.Alias("nominal_weight_noSF", "nominal_weight")
-        else:
-            df = df.Define(
-                "nominal_weight_noSF",
-                "nominal_weight/weight_fullMuonSF_withTrackingReco",
-            )
-        nominal_uT_isoMT_noSF = df.HistoBoost(
-            "nominal_uT_isoMT_noSF",
-            [
-                axis_eta_coarse,
-                axis_pt,
-                common.axis_charge,
-                axis_trigPassIso,
-                axis_nonTrigPassIso,
-                common.axis_passMT,
-                axis_ut,
-                axis_utnt,
-            ],
-            [
-                *cols,
-                "trigMuons_passIso0",
-                "nonTrigMuons_passIso0",
-                "passWlikeMT",
-                "trigMuons_recouT0",
-                "nonTrigMuons_recouT0",
-                "nominal_weight_noSF",
-            ],
-        )
-        results.append(nominal_uT_isoMT_noSF)
+        # df = df.Define(
+        #     "trigMuons_recouT0",
+        #     "wrem::zqtproj0(trigMuons_pt0,trigMuons_phi0,nonTrigMuons_pt0,nonTrigMuons_phi0)",
+        # )
+        # df = df.Define(
+        #     "nonTrigMuons_recouT0",
+        #     "wrem::zqtproj0(nonTrigMuons_pt0,nonTrigMuons_phi0,trigMuons_pt0,trigMuons_phi0)",
+        # )
+        # axis_ut = hist.axis.Regular(
+        #     50, -40, 60, overflow=True, underflow=True, name="ut"
+        # )
+        # axis_utnt = hist.axis.Regular(
+        #     50, -40, 60, overflow=True, underflow=True, name="utNonTrig"
+        # )
+        # axis_eta_coarse = hist.axis.Regular(
+        #     6, -2.4, 2.4, name="eta", underflow=False, overflow=False
+        # )
+        # nominal_uT_isoMT = df.HistoBoost(
+        #     "nominal_uT_isoMT",
+        #     [
+        #         axis_eta_coarse,
+        #         axis_pt,
+        #         common.axis_charge,
+        #         axis_trigPassIso,
+        #         axis_nonTrigPassIso,
+        #         common.axis_passMT,
+        #         axis_ut,
+        #         axis_utnt,
+        #     ],
+        #     [
+        #         *cols,
+        #         "trigMuons_passIso0",
+        #         "nonTrigMuons_passIso0",
+        #         "passWlikeMT",
+        #         "trigMuons_recouT0",
+        #         "nonTrigMuons_recouT0",
+        #         "nominal_weight",
+        #     ],
+        # )
+        # results.append(nominal_uT_isoMT)
+        ## now without SF, for data it doesn't matter
+        # if dataset.is_data:
+        #     df = df.Alias("nominal_weight_noSF", "nominal_weight")
+        # else:
+        #     df = df.Define(
+        #         "nominal_weight_noSF",
+        #         "nominal_weight/weight_fullMuonSF_withTrackingReco",
+        #     )
+        # nominal_uT_isoMT_noSF = df.HistoBoost(
+        #     "nominal_uT_isoMT_noSF",
+        #     [
+        #         axis_eta_coarse,
+        #         axis_pt,
+        #         common.axis_charge,
+        #         axis_trigPassIso,
+        #         axis_nonTrigPassIso,
+        #         common.axis_passMT,
+        #         axis_ut,
+        #         axis_utnt,
+        #     ],
+        #     [
+        #         *cols,
+        #         "trigMuons_passIso0",
+        #         "nonTrigMuons_passIso0",
+        #         "passWlikeMT",
+        #         "trigMuons_recouT0",
+        #         "nonTrigMuons_recouT0",
+        #         "nominal_weight_noSF",
+        #     ],
+        # )
+        # results.append(nominal_uT_isoMT_noSF)
         ###
         nominal_testIsoMtFakeRegions = df.HistoBoost(
             "nominal_testIsoMtFakeRegions",
