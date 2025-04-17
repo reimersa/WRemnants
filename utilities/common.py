@@ -321,7 +321,7 @@ def get_dilepton_ptV_binning(fine=False):
             100,
         ]
         if not fine
-        else range(200)
+        else range(101)
     )
 
 
