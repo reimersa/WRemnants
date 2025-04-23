@@ -3,7 +3,7 @@ from copy import deepcopy
 import hist
 
 from utilities import common
-from wremnants import syst_tools, theory_tools, theoryAgnostic_tools
+from wremnants import syst_tools, theory_tools
 from wums import logging
 
 logger = logging.child_logger(__name__)
@@ -202,20 +202,20 @@ def add_xnorm_histograms(
     xnorm_cols = ["xnorm", *unfolding_cols]
 
     if add_helicity_axis:
-        df_xnorm = theoryAgnostic_tools.define_helicity_weights(
-            df_xnorm,
-            is_z=dataset_name == "ZmumuPostVFP",
-            filename=f"{common.data_dir}/angularCoefficients/w_z_helicity_xsecs_scetlib_dyturboCorr_maxFiles_m1_unfoldingBinning.hdf5",
-        )
-
         from wremnants.helicity_utils import axis_helicity_multidim
+
+        df_xnorm = df_xnorm.Define(
+            "helicity_moments_tensor",
+            "wrem::csAngularMoments(csSineCosThetaPhigen, nominal_weight)",
+        )
 
         results.append(
             df_xnorm.HistoBoost(
                 base_name,
                 xnorm_axes,
-                [*xnorm_cols, "nominal_weight_helicity"],
+                [*xnorm_cols, "helicity_moments_tensor"],
                 tensor_axes=[axis_helicity_multidim],
+                storage=hist.storage.Weight(),
             )
         )
     else:
