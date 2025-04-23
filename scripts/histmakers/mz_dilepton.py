@@ -31,6 +31,7 @@ from wremnants import (
 from wremnants.datasets.dataset_tools import getDatasets
 from wremnants.histmaker_tools import (
     aggregate_groups,
+    make_quantile_helper,
     scale_to_data,
     write_analysis_output,
 )
@@ -124,6 +125,7 @@ if args.useTheoryAgnosticBinning:
     )
     axis_ptV_thag = theoryAgnostic_axes[0]
     dilepton_ptV_binning = axis_ptV_thag.edges
+
 
 # available axes for dilepton validation plots
 all_axes = {
@@ -232,6 +234,7 @@ auxiliary_gen_axes = [
 ]
 
 if args.unfolding:
+
     unfolding_axes = {}
     unfolding_cols = {}
     unfolding_selections = {}
@@ -272,15 +275,19 @@ nominal_cols = args.axes
 if args.csVarsHist:
     # in case CS variables are added to the main histogram, use optimized binning
     # 8 quantiles
-    all_axes["cosThetaStarll"] = hist.axis.Variable(
-        [-1, -0.56, -0.375, -0.19, 0.0, 0.19, 0.375, 0.56, 1.0],
-        name="cosThetaStarll",
+    all_axes["cosThetaStarll_quantile"] = hist.axis.Regular(
+        8,
+        0,
+        1,
+        name="cosThetaStarll_quantile",
         underflow=False,
         overflow=False,
     )
-    all_axes["phiStarll"] = hist.axis.Variable(
-        [-math.pi, -2.27, -1.57, -0.87, 0, 0.87, 1.57, 2.27, math.pi],
-        name="phiStarll",
+    all_axes["phiStarll_quantile"] = hist.axis.Regular(
+        8,
+        0,
+        1,
+        name="phiStarll_quantile",
         underflow=False,
         overflow=False,
     )
@@ -289,7 +296,23 @@ if args.csVarsHist:
         [-2.5, -1.5, -1.1, -0.7, -0.35, 0, 0.35, 0.7, 1.1, 1.5, 2.5], name="yll"
     )
 
-    nominal_cols += ["cosThetaStarll", "phiStarll"]
+    quantile_file = f"{common.data_dir}/angularCoefficients/mz_dilepton_scetlib_dyturboCorr_maxFiles_m1_csQuantiles.hdf5"
+    quantile_helper_phiStarll = make_quantile_helper(
+        quantile_file,
+        "phiStarll",
+        ["ptll", "absYll"],
+        name="nominal_phiStarll",
+        processes=["ZmumuPostVFP"],
+    )
+    quantile_helper_cosThetaStarll = make_quantile_helper(
+        quantile_file,
+        "cosThetaStarll",
+        ["ptll", "absYll"],
+        name="nominal_cosThetaStarll",
+        processes=["ZmumuPostVFP"],
+    )
+
+    nominal_cols += ["cosThetaStarll_quantile", "phiStarll_quantile"]
 
 nominal_axes = [all_axes[a] for a in nominal_cols]
 
@@ -669,6 +692,26 @@ def build_graph(df, dataset):
     df = df.Define("cosThetaStarll", "csSineCosThetaPhill.costheta")
     df = df.Define("phiStarll", "csSineCosThetaPhill.phi()")
 
+    if args.csVarsHist:
+        for c, h, a in (
+            (
+                "phiStarll_quantile",
+                quantile_helper_phiStarll,
+                ["phiStarll", "ptll", "absYll"],
+            ),
+            (
+                "cosThetaStarll_quantile",
+                quantile_helper_cosThetaStarll,
+                ["cosThetaStarll", "ptll", "absYll"],
+            ),
+        ):
+            if [a for a in h.axes.name] != a:
+                raise RuntimeError(
+                    f"Invalid helper axes: {[a for a in h.axes.name]} != {a}"
+                )
+
+            df = df.Define(c, h, a)
+
     # TODO might need to add an explicit cut on trigMuons_pt0 in case nominal pt range
     # extends below 26 GeV e.g. for calibration test purposes
     df = df.Define("trigMuons_abseta0", "std::fabs(trigMuons_eta0)")
@@ -931,6 +974,21 @@ def build_graph(df, dataset):
                 )
 
     if not args.noAuxiliaryHistograms:
+        results.append(
+            df.HistoBoost(
+                f"nominal_phiStarll",
+                [all_axes[o] for o in ["ptll", "absYll", "phiStarll"]],
+                ["ptll", "absYll", "phiStarll"],
+            )
+        )
+        results.append(
+            df.HistoBoost(
+                f"nominal_cosThetaStarll",
+                [all_axes[o] for o in ["ptll", "absYll", "cosThetaStarll"]],
+                ["ptll", "absYll", "cosThetaStarll"],
+            )
+        )
+
         for obs in [
             "ptll",
             "mll",

@@ -2,8 +2,13 @@ import os
 import time
 
 import h5py
+import hist
+import numpy as np
+import ROOT
 
 from utilities import common
+from utilities.io_tools import input_tools
+from wums import boostHistHelpers as hh
 from wums import ioutils, logging, output_tools
 
 logger = logging.child_logger(__name__)
@@ -197,3 +202,49 @@ def write_analysis_output(results, outfile, args):
     logger.info(f"Output saved in {outfile}")
 
     return outfile
+
+
+import narf
+
+narf.clingutils.Declare('#include "histHelpers.hpp"')
+
+
+def make_quantile_helper(
+    filename, axis, dependent_axes=[], name="nominal", processes=["ZmumuPostVFP"]
+):
+    """
+    Helper to compute the quantile for `axis` from fine binned histogram with `name` in bins of the dependent axes
+    The heler takes colums for `axis` and `dependent_axes` and returns the quantile the event falls as a fraction of 1
+    """
+
+    h5file = h5py.File(filename, "r")
+    results = input_tools.load_results_h5py(h5file)
+
+    h = hh.sumHists(results[p]["output"][name].get() for p in processes)
+
+    h = h.project(axis, *dependent_axes)
+
+    idx = h.axes.name.index(axis)
+
+    cdf_arr = np.cumsum(h.values(flow=True), axis=idx)
+
+    # Normalize to get values between 0 and 1
+    slices_norm = [-1 if i == idx else slice(None) for i in range(len(h.axes))]
+    slices_bc = [np.newaxis if i == idx else slice(None) for i in range(len(h.axes))]
+    cdf_arr /= cdf_arr[*slices_norm][*slices_bc]
+
+    hNew = hist.Hist(*h.axes, storage=hist.storage.Double())
+
+    hNew.values(flow=True)[...] = cdf_arr
+
+    hConv = narf.hist_to_pyroot_boost(hNew, tensor_rank=0)
+
+    tensor = getattr(ROOT.wrem, f"HistHelper{len(h.axes)}D", None)
+    if tensor == None:
+        raise NotImplementedError(f"HistHelper{len(h.axes)}D not yet implemented")
+
+    helper = tensor[type(hConv).__cpp_name__](ROOT.std.move(hConv))
+    helper.hist = h
+    helper.axes = h.axes
+
+    return helper
