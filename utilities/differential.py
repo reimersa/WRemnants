@@ -138,22 +138,26 @@ def get_dilepton_axes(
             )
         elif v == "absYVGen":
             # 1 absYVGen for 2 yll bins (negative and positive)
-            edges = reco_edges["yll"].edges
+            edges = reco_edges["yll"]
             if edges[len(edges) // 2] != 0:
                 raise RuntimeError("Central bin edge must be 0")
             axes.append(
                 hist.axis.Variable(
-                    edges[: len(edges) // 2],
+                    edges[len(edges) // 2 :],
                     name="absYVGen",
                     underflow=False,
                     overflow=False,
                 ),
             )
             selections.append(f"{gen_level}V_absY < {edges[-1]}")
-        else:
-            raise NotImplementedError(
-                f"Unfolding dilepton axis {gen_vars} is not supported."
+        elif v in ["qVGen"]:
+            axes.append(
+                hist.axis.Regular(
+                    2, -2.0, 2.0, underflow=False, overflow=False, name="qVGen"
+                )
             )
+        else:
+            raise NotImplementedError(f"Unfolding dilepton axis {v} is not supported.")
 
     if add_out_of_acceptance_axis:
         axes.append(hist.axis.Boolean(name="acceptance"))

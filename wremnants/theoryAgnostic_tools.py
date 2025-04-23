@@ -33,7 +33,7 @@ def select_fiducial_space(
     return df
 
 
-def define_helicity_weights(df, is_z):
+def define_helicity_weights(df, is_z=False):
     helper = helicity_utils.make_helicity_weight_helper(
         is_z,
         filename=f"{common.data_dir}/angularCoefficients/w_z_helicity_xsecs_theoryAgnosticBinning_scetlib_dyturboCorr_maxFiles_m1.hdf5",

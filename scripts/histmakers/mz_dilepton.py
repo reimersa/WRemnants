@@ -82,6 +82,12 @@ parser.add_argument(
     action="store_true",
     help="To read efficiency scale factors, use the same muon variables as used to measure them with tag-and-probe (by default the final corrected ones are used)",
 )
+parser.add_argument(
+    "--makeCSQuantileHists",
+    action="store_true",
+    help="Make hists with fine binned CS variables for producing quantiles",
+)
+
 
 parser = parsing.set_parser_default(
     parser, "aggregateGroups", ["Diboson", "Top", "Wtaunu", "Wmunu"]
@@ -243,7 +249,7 @@ nominal_cols = args.axes
 
 if args.csVarsHist:
     # in case CS variables are added to the main histogram, use optimized binning
-    # CS variables will be binned in nxn quantiles
+    # CS variables will be binned in nxn quantiles; quantiles are computed in each bin of args.axes as provided by the quantile_file
     n_quantiles = 8
     all_axes["cosThetaStarll_quantile"] = hist.axis.Regular(
         n_quantiles,
@@ -292,7 +298,7 @@ if args.unfolding:
         # helper to derive helicity xsec shape from event by event reweighting
         weightsByHelicity_helper_unfolding = helicity_utils.make_helicity_weight_helper(
             is_z=True,
-            filename=f"{common.data_dir}/angularCoefficients/w_z_helicity_xsecs_scetlib_dyturboCorr_maxFiles_m1_absYVGenInclusive_ptVgenRebin2.hdf5",
+            filename=f"{common.data_dir}/angularCoefficients/w_z_helicity_xsecs_scetlib_dyturboCorr_maxFiles_m1_unfoldingBinning.hdf5",
         )
 
     unfolding_axes = {}
@@ -992,20 +998,21 @@ def build_graph(df, dataset):
                     )
                 )
 
-    results.append(
-        df.HistoBoost(
-            f"nominal_phiStarll",
-            [all_axes[o] for o in ["ptll", "absYll", "phiStarll"]],
-            ["ptll", "absYll", "phiStarll"],
+    if args.makeCSQuantileHists:
+        results.append(
+            df.HistoBoost(
+                f"nominal_phiStarll",
+                [all_axes[o] for o in ["ptll", "absYll", "phiStarll"]],
+                ["ptll", "absYll", "phiStarll"],
+            )
         )
-    )
-    results.append(
-        df.HistoBoost(
-            f"nominal_cosThetaStarll",
-            [all_axes[o] for o in ["ptll", "absYll", "cosThetaStarll"]],
-            ["ptll", "absYll", "cosThetaStarll"],
+        results.append(
+            df.HistoBoost(
+                f"nominal_cosThetaStarll",
+                [all_axes[o] for o in ["ptll", "absYll", "cosThetaStarll"]],
+                ["ptll", "absYll", "cosThetaStarll"],
+            )
         )
-    )
 
     if not args.noAuxiliaryHistograms:
         for obs in [
