@@ -1,5 +1,6 @@
 import hist
 
+from utilities import common
 from wremnants import helicity_utils, syst_tools, theory_tools
 from wums import logging
 
@@ -32,26 +33,12 @@ def select_fiducial_space(
     return df
 
 
-def define_helicity_weights(df, is_z=False, filename=None):
-    # define the helicity tensor, here nominal_weight will only have theory weights, no experimental pieces, it is defined in theory_tools.define_theory_weights_and_corrs
-    weightsByHelicity_helper = helicity_utils.makehelicityWeightHelper(is_z, filename)
-    df = df.Define(
-        "helWeight_tensor",
-        weightsByHelicity_helper,
-        [
-            "massVgen",
-            "absYVgen",
-            "ptVgen",
-            "chargeVgen",
-            "csSineCosThetaPhigen",
-        ],
+def define_helicity_weights(df, is_z):
+    helper = helicity_utils.make_helicity_weight_helper(
+        is_z,
+        filename=f"{common.data_dir}/angularCoefficients/w_z_helicity_xsecs_theoryAgnosticBinning_scetlib_dyturboCorr_maxFiles_m1.hdf5",
     )
-
-    df = df.Define(
-        "nominal_weight_helicity",
-        "wrem::scalarmultiplyHelWeightTensor(nominal_weight, helWeight_tensor)",
-    )
-
+    df = helicity_utils.define_helicity_weights(df, helper)
     return df
 
 
@@ -73,6 +60,9 @@ def add_xnorm_histograms(
         df_xnorm, dataset_name, corr_helpers, args
     )
     # define the helicity tensor, here nominal_weight will only have theory weights, no experimental pieces, it is defined in theory_tools.define_theory_weights_and_corrs
+    # TODO: this does not look correct since theoryAgnostic_axes only contain only polarization independent observables (pTV, YV, mV, qV)
+    #   and the helicity weights are only nonzero for polarization dependent variables (cos(theta*), phi*, lepton eta, ...)
+
     df_xnorm = define_helicity_weights(df_xnorm, is_z=dataset_name == "ZmumuPostVFP")
     df_xnorm = df_xnorm.DefinePerSample("xnorm", "0.5")
     axis_xnorm = hist.axis.Regular(
