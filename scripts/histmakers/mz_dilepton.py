@@ -202,10 +202,10 @@ all_axes = {
         int(args.pt[0]), args.pt[1], args.pt[2], name="ptMinus"
     ),
     "cosThetaStarll": hist.axis.Regular(
-        20, -1.0, 1.0, name="cosThetaStarll", underflow=False, overflow=False
+        200, -1.0, 1.0, name="cosThetaStarll", underflow=False, overflow=False
     ),
     "phiStarll": hist.axis.Regular(
-        20, -math.pi, math.pi, circular=True, name="phiStarll"
+        200, -math.pi, math.pi, circular=True, name="phiStarll"
     ),
     # "charge": hist.axis.Regular(2, -2., 2., underflow=False, overflow=False, name = "charge") # categorical axes in python bindings always have an overflow bin, so use a regular
     "massVgen": hist.axis.Variable(ewMassBins, name="massVgen"),
@@ -233,37 +233,6 @@ auxiliary_gen_axes = [
     "ewLogDeltaM",  # ew variables
 ]
 
-if args.unfolding:
-
-    unfolding_axes = {}
-    unfolding_cols = {}
-    unfolding_selections = {}
-    for level in args.unfoldingLevels:
-        a, c, s = differential.get_dilepton_axes(
-            args.unfoldingAxes,
-            common.get_gen_axes(
-                dilepton_ptV_binning, args.unfoldingInclusive, flow=True
-            ),
-            level,
-            add_out_of_acceptance_axis=args.poiAsNoi,
-        )
-        unfolding_axes[level] = a
-        unfolding_cols[level] = c
-        unfolding_selections[level] = s
-
-        if not args.poiAsNoi:
-            datasets = unfolding_tools.add_out_of_acceptance(datasets, group="Zmumu")
-            if len(args.unfoldingLevels) > 1:
-                logger.warning(
-                    f"Exact unfolding with multiple gen level definitions is not possible, take first one: {args.unfoldingLevels[0]} and continue."
-                )
-                break
-
-    if args.fitresult:
-        unfolding_corr_helper = unfolding_tools.reweight_to_fitresult(args.fitresult)
-
-    add_helicity_axis = "helicitySig" in args.unfoldingAxes
-
 for a in args.axes:
     if a not in all_axes.keys():
         logger.error(
@@ -274,9 +243,10 @@ nominal_cols = args.axes
 
 if args.csVarsHist:
     # in case CS variables are added to the main histogram, use optimized binning
-    # 8 quantiles
+    # CS variables will be binned in nxn quantiles
+    n_quantiles = 8
     all_axes["cosThetaStarll_quantile"] = hist.axis.Regular(
-        8,
+        n_quantiles,
         0,
         1,
         name="cosThetaStarll_quantile",
@@ -284,7 +254,7 @@ if args.csVarsHist:
         overflow=False,
     )
     all_axes["phiStarll_quantile"] = hist.axis.Regular(
-        8,
+        n_quantiles,
         0,
         1,
         name="phiStarll_quantile",
@@ -292,9 +262,7 @@ if args.csVarsHist:
         overflow=False,
     )
     # 10 quantiles
-    all_axes["yll"] = hist.axis.Variable(
-        [-2.5, -1.5, -1.1, -0.7, -0.35, 0, 0.35, 0.7, 1.1, 1.5, 2.5], name="yll"
-    )
+    all_axes["yll"] = hist.axis.Variable(common.yll_10quantiles_binning, name="yll")
 
     quantile_file = f"{common.data_dir}/angularCoefficients/mz_dilepton_scetlib_dyturboCorr_maxFiles_m1_csQuantiles.hdf5"
     quantile_helper_phiStarll = make_quantile_helper(
@@ -316,13 +284,66 @@ if args.csVarsHist:
 
 nominal_axes = [all_axes[a] for a in nominal_cols]
 
+
+if args.unfolding:
+    add_helicity_axis = "helicitySig" in args.unfoldingAxes
+
+    if add_helicity_axis:
+        # helper to derive helicity xsec shape from event by event reweighting
+        weightsByHelicity_helper_unfolding = helicity_utils.make_helicity_weight_helper(
+            is_z=True,
+            filename=f"{common.data_dir}/angularCoefficients/w_z_helicity_xsecs_scetlib_dyturboCorr_maxFiles_m1_absYVGenInclusive_ptVgenRebin2.hdf5",
+        )
+
+    unfolding_axes = {}
+    unfolding_cols = {}
+    unfolding_selections = {}
+    for level in args.unfoldingLevels:
+        a, c, s = differential.get_dilepton_axes(
+            args.unfoldingAxes,
+            {a: all_axes[a].edges for a in args.axes},
+            level,
+            add_out_of_acceptance_axis=args.poiAsNoi,
+        )
+        unfolding_axes[level] = a
+        unfolding_cols[level] = c
+        unfolding_selections[level] = s
+
+        if not args.poiAsNoi:
+            datasets = unfolding_tools.add_out_of_acceptance(datasets, group="Zmumu")
+            if len(args.unfoldingLevels) > 1:
+                logger.warning(
+                    f"Exact unfolding with multiple gen level definitions is not possible, take first one: {args.unfoldingLevels[0]} and continue."
+                )
+                break
+
+        if add_helicity_axis:
+            for ax in a:
+                if ax.name == "acceptance":
+                    continue
+                # check if binning is consistent between correction helper and unfolding axes
+                wbh_axis = weightsByHelicity_helper_unfolding.hist.axes[
+                    ax.name.replace("Gen", "gen")
+                ]
+                if any(ax.edges != wbh_axis.edges):
+                    raise RuntimeError(
+                        f"""
+                        Unfolding axes must be consistent with axes from weightsByHelicity_helper.\n
+                        Found unfolding axis {ax}\n
+                        And weightsByHelicity_helper axis {wbh_axis}
+                        """
+                    )
+
+    if args.fitresult:
+        unfolding_corr_helper = unfolding_tools.reweight_to_fitresult(args.fitresult)
+
 # define helpers
 muon_prefiring_helper, muon_prefiring_helper_stat, muon_prefiring_helper_syst = (
     muon_prefiring.make_muon_prefiring_helpers(era=era)
 )
 
 qcdScaleByHelicity_helper = theory_corrections.make_qcd_uncertainty_helper_by_helicity(
-    is_w_like=True
+    is_z=True
 )
 
 # extra axes which can be used to label tensor_axes
@@ -335,7 +356,7 @@ if args.binnedScaleFactors:
     # add usePseudoSmoothing=True for tests with Asimov
     muon_efficiency_helper, muon_efficiency_helper_syst, muon_efficiency_helper_stat = (
         muon_efficiencies_binned.make_muon_efficiency_helpers_binned(
-            filename=args.sfFile, era=era, max_pt=args.pt[2], is_w_like=True
+            filename=args.sfFile, era=era, max_pt=args.pt[2], is_z=True
         )
     )
 else:
@@ -936,10 +957,8 @@ def build_graph(df, dataset):
 
     if args.unfolding and args.poiAsNoi and dataset.name == "ZmumuPostVFP":
         if add_helicity_axis:
-            df_unfolding = theoryAgnostic_tools.define_helicity_weights(
-                df,
-                is_z=True,
-                filename=f"{common.data_dir}/angularCoefficients/w_z_helicity_xsecs_scetlib_dyturboCorr_maxFiles_m1_unfoldingBinning.hdf5",
+            df_unfolding = helicity_utils.define_helicity_weights(
+                df, weightsByHelicity_helper_unfolding
             )
         else:
             df_unfolding = df
@@ -973,22 +992,22 @@ def build_graph(df, dataset):
                     )
                 )
 
-    if not args.noAuxiliaryHistograms:
-        results.append(
-            df.HistoBoost(
-                f"nominal_phiStarll",
-                [all_axes[o] for o in ["ptll", "absYll", "phiStarll"]],
-                ["ptll", "absYll", "phiStarll"],
-            )
+    results.append(
+        df.HistoBoost(
+            f"nominal_phiStarll",
+            [all_axes[o] for o in ["ptll", "absYll", "phiStarll"]],
+            ["ptll", "absYll", "phiStarll"],
         )
-        results.append(
-            df.HistoBoost(
-                f"nominal_cosThetaStarll",
-                [all_axes[o] for o in ["ptll", "absYll", "cosThetaStarll"]],
-                ["ptll", "absYll", "cosThetaStarll"],
-            )
+    )
+    results.append(
+        df.HistoBoost(
+            f"nominal_cosThetaStarll",
+            [all_axes[o] for o in ["ptll", "absYll", "cosThetaStarll"]],
+            ["ptll", "absYll", "cosThetaStarll"],
         )
+    )
 
+    if not args.noAuxiliaryHistograms:
         for obs in [
             "ptll",
             "mll",

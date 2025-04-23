@@ -175,7 +175,10 @@ def build_graph(df, dataset):
         unfolding_axes, unfolding_cols, unfolding_selections = (
             differential.get_dilepton_axes(
                 ["ptVGen", "absYVGen"],
-                common.get_gen_axes(common.get_dilepton_ptV_binning(), True, flow=True),
+                {
+                    "ptll": common.get_dilepton_ptV_binning(args.finePtBinning),
+                    "yll": common.yll_10quantiles_binning,
+                },
                 "prefsr",
                 add_out_of_acceptance_axis=False,
             )
@@ -836,7 +839,7 @@ def build_graph(df, dataset):
 
         qcdScaleByHelicity_helper = (
             theory_corrections.make_qcd_uncertainty_helper_by_helicity(
-                is_w_like=dataset.name[0] != "W"
+                is_z=dataset.name[0] != "W"
             )
             if args.helicity
             else None

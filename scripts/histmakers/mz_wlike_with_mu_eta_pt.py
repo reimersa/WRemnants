@@ -286,7 +286,7 @@ muon_prefiring_helper, muon_prefiring_helper_stat, muon_prefiring_helper_syst = 
 )
 
 qcdScaleByHelicity_helper = theory_corrections.make_qcd_uncertainty_helper_by_helicity(
-    is_w_like=True
+    is_z=True
 )
 
 # extra axes which can be used to label tensor_axes
@@ -295,7 +295,7 @@ if args.binnedScaleFactors:
     # add usePseudoSmoothing=True for tests with Asimov
     muon_efficiency_helper, muon_efficiency_helper_syst, muon_efficiency_helper_stat = (
         muon_efficiencies_binned.make_muon_efficiency_helpers_binned(
-            filename=args.sfFile, era=era, max_pt=axis_pt.edges[-1], is_w_like=True
+            filename=args.sfFile, era=era, max_pt=axis_pt.edges[-1], is_z=True
         )
     )
 else:
