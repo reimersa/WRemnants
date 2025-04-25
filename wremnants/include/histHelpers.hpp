@@ -31,6 +31,19 @@ private:
   std::shared_ptr<const T> resourceHist_;
 };
 
+template <typename T> class HistHelper4D {
+public:
+  HistHelper4D(T &&resource)
+      : resourceHist_(std::make_shared<const T>(std::move(resource))) {}
+
+  double operator()(double x1, double x2, double x3, double x4) {
+    return narf::get_value(*resourceHist_, x1, x2, x3, x4);
+  }
+
+private:
+  std::shared_ptr<const T> resourceHist_;
+};
+
 void fillTHNplus1fromTHn(THnD &thnp1, THnD &thn, int binLow = 0,
                          int binHigh = -1) {
   int ndim = thn.GetNdimensions();

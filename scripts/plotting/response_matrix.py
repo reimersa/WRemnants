@@ -412,6 +412,8 @@ for g_name, group in datagroups.items():
             if axes[0].startswith("abs("):
                 # mirror axis at half
                 hist2d = histo[select].project(axes[0][4:-1], *axes[1:])
+                # disable flow for reco axis
+                hist2d = hh.disableFlow(hist2d, axes[0])
                 nbins = len(hist2d.axes.edges[0]) - 1
                 values = (
                     hist2d.values(flow=genFlow)[: int(nbins / 2)][::-1]
@@ -420,6 +422,8 @@ for g_name, group in datagroups.items():
                 xbins = hist2d.axes[0].edges[int(nbins / 2) :]
             else:
                 hist2d = histo[select].project(*axes)
+                # disable flow for reco axis
+                hist2d = hh.disableFlow(hist2d, axes[0])
                 if len(hist2d.axes[0]) == len(hist2d.axes[1]) + 1:
                     hist2d = hh.disableFlow(hist2d, hist2d.axes[0].name)
                 values = hist2d.values(flow=genFlow)
