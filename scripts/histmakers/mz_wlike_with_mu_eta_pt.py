@@ -295,7 +295,7 @@ if args.binnedScaleFactors:
     # add usePseudoSmoothing=True for tests with Asimov
     muon_efficiency_helper, muon_efficiency_helper_syst, muon_efficiency_helper_stat = (
         muon_efficiencies_binned.make_muon_efficiency_helpers_binned(
-            filename=args.sfFile, era=era, max_pt=axis_pt.edges[-1], is_z=True
+            filename=args.sfFile, era=era, max_pt=axis_pt.edges[-1], is_w_like=True
         )
     )
 else:

@@ -112,10 +112,14 @@ def get_purity(matrix, xbins, ybins):
     edges = ybins
 
     values = []
+    bins = [xbins[0]]
     for iBin, center in enumerate(centers):
+        if center > edges[-1]:
+            break
+        else:
+            ihigh = np.where(edges == edges[center < edges][0])[0][0]
         # find out in which gen bin(s) we are
         ilow = np.where(edges == edges[center > edges][-1])[0][0]
-        ihigh = np.where(edges == edges[center < edges][0])[0][0]
 
         # sum corresponding diagonal element(s)
         diag = matrix[iBin, ilow:ihigh].sum()
@@ -124,8 +128,9 @@ def get_purity(matrix, xbins, ybins):
         reco = matrix[iBin, :].sum()
 
         values.append(diag / reco)
+        bins.append(xbins[iBin + 1])
 
-    return np.array(values)
+    return np.array(values), np.array(bins)
 
 
 def get_stability(matrix, xbins, ybins):
@@ -453,15 +458,15 @@ for g_name, group in datagroups.items():
             ax.set_xlabel(translate_label[axes[0]])
             ax.set_ylabel("Purity")
 
-            purity = get_purity(values, xbins, ybins)
+            purity, bins = get_purity(values, xbins, ybins)
 
-            hep.histplot(purity, xbins, color="blue")
+            hep.histplot(purity, bins, color="blue")
 
             range_y = max(purity) - min(purity)
             min_y = min(purity) - range_y * 0.1
             max_y = max(purity) + range_y * 0.1
 
-            ax.set_xlim([min(xbins), max(xbins)])
+            ax.set_xlim([min(bins), max(bins)])
             ax.set_ylim([min_y, max_y])
 
             plot_tools.add_cms_decor(
@@ -477,9 +482,9 @@ for g_name, group in datagroups.items():
             ax.set_xlabel(translate_label[axes[1]])
             ax.set_ylabel("Stability")
 
-            stability = get_stability(values, xbins, ybins)
+            stability, stability_bins = get_stability(values, xbins, ybins)
 
-            hep.histplot(stability, ybins, color="red")
+            hep.histplot(stability, stability_bins, color="red")
 
             range_y = max(stability) - min(stability)
             min_y = min(stability) - range_y * 0.1

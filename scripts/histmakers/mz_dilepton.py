@@ -208,10 +208,19 @@ all_axes = {
         int(args.pt[0]), args.pt[1], args.pt[2], name="ptMinus"
     ),
     "cosThetaStarll": hist.axis.Regular(
-        200, -1.0, 1.0, name="cosThetaStarll", underflow=False, overflow=False
+        200 if args.makeCSQuantileHists else 20,
+        -1.0,
+        1.0,
+        name="cosThetaStarll",
+        underflow=False,
+        overflow=False,
     ),
     "phiStarll": hist.axis.Regular(
-        200, -math.pi, math.pi, circular=True, name="phiStarll"
+        200 if args.makeCSQuantileHists else 20,
+        -math.pi,
+        math.pi,
+        circular=True,
+        name="phiStarll",
     ),
     # "charge": hist.axis.Regular(2, -2., 2., underflow=False, overflow=False, name = "charge") # categorical axes in python bindings always have an overflow bin, so use a regular
     "massVgen": hist.axis.Variable(ewMassBins, name="massVgen"),
@@ -271,19 +280,13 @@ if args.csVarsHist:
     all_axes["yll"] = hist.axis.Variable(common.yll_10quantiles_binning, name="yll")
 
     quantile_file = f"{common.data_dir}/angularCoefficients/mz_dilepton_scetlib_dyturboCorr_maxFiles_m1_csQuantiles.hdf5"
-    quantile_helper_phiStarll = make_quantile_helper(
+    quantile_helper_csVars = make_quantile_helper(
         quantile_file,
-        "phiStarll",
+        ["cosThetaStarll", "phiStarll"],
         ["ptll", "absYll"],
-        name="nominal_phiStarll",
+        name="nominal_csQuantiles",
         processes=["ZmumuPostVFP"],
-    )
-    quantile_helper_cosThetaStarll = make_quantile_helper(
-        quantile_file,
-        "cosThetaStarll",
-        ["ptll", "absYll"],
-        name="nominal_cosThetaStarll",
-        processes=["ZmumuPostVFP"],
+        n_quantiles=[n_quantiles],
     )
 
     nominal_cols += ["cosThetaStarll_quantile", "phiStarll_quantile"]
@@ -362,7 +365,7 @@ if args.binnedScaleFactors:
     # add usePseudoSmoothing=True for tests with Asimov
     muon_efficiency_helper, muon_efficiency_helper_syst, muon_efficiency_helper_stat = (
         muon_efficiencies_binned.make_muon_efficiency_helpers_binned(
-            filename=args.sfFile, era=era, max_pt=args.pt[2], is_z=True
+            filename=args.sfFile, era=era, max_pt=args.pt[2], is_w_like=True
         )
     )
 else:
@@ -723,13 +726,13 @@ def build_graph(df, dataset):
         for c, h, a in (
             (
                 "phiStarll_quantile",
-                quantile_helper_phiStarll,
+                quantile_helper_csVars[0],
                 ["phiStarll", "ptll", "absYll"],
             ),
             (
                 "cosThetaStarll_quantile",
-                quantile_helper_cosThetaStarll,
-                ["cosThetaStarll", "ptll", "absYll"],
+                quantile_helper_csVars[1],
+                ["cosThetaStarll", "phiStarll", "ptll", "absYll"],
             ),
         ):
             if [a for a in h.axes.name] != a:
@@ -1001,16 +1004,12 @@ def build_graph(df, dataset):
     if args.makeCSQuantileHists:
         results.append(
             df.HistoBoost(
-                f"nominal_phiStarll",
-                [all_axes[o] for o in ["ptll", "absYll", "phiStarll"]],
-                ["ptll", "absYll", "phiStarll"],
-            )
-        )
-        results.append(
-            df.HistoBoost(
-                f"nominal_cosThetaStarll",
-                [all_axes[o] for o in ["ptll", "absYll", "cosThetaStarll"]],
-                ["ptll", "absYll", "cosThetaStarll"],
+                f"nominal_csQuantiles",
+                [
+                    all_axes[o]
+                    for o in ["ptll", "absYll", "phiStarll", "cosThetaStarll"]
+                ],
+                ["ptll", "absYll", "phiStarll", "cosThetaStarll"],
             )
         )
 
