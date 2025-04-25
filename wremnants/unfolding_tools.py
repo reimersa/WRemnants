@@ -206,14 +206,14 @@ def add_xnorm_histograms(
 
         df_xnorm = df_xnorm.Define(
             "helicity_moments_tensor",
-            "wrem::csAngularMoments(csSineCosThetaPhigen, nominal_weight)",
+            "wrem::csAngularMoments(csSineCosThetaPhigen)",
         )
 
         results.append(
             df_xnorm.HistoBoost(
                 base_name,
                 xnorm_axes,
-                [*xnorm_cols, "helicity_moments_tensor"],
+                [*xnorm_cols, "helicity_moments_tensor", "nominal_weight"],
                 tensor_axes=[axis_helicity_multidim],
                 storage=hist.storage.Weight(),
             )
