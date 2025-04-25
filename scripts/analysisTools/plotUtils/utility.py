@@ -1967,6 +1967,7 @@ def drawNTH1(
 
     # moreTextLatex is similar, but used TLatex, and the four coordinates are x1,y1,ypass,textsize
     # where x1 and y1 are the coordinates the first line, and ypass is how much below y1 the second line is (and so on for following lines)
+    ROOT.TGaxis.SetExponentOffset(-0.025 if leftMargin < 0.1 else -0.09, 0.0, "y")
 
     if len(hists) != len(legEntries):
         logger.warning("In drawNTH1: #(hists) != #(legEntries). Abort")
