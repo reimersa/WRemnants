@@ -302,6 +302,7 @@ if args.unfolding:
         weightsByHelicity_helper_unfolding = helicity_utils.make_helicity_weight_helper(
             is_z=True,
             filename=f"{common.data_dir}/angularCoefficients/w_z_helicity_xsecs_scetlib_dyturboCorr_maxFiles_m1_unfoldingBinning.hdf5",
+            rebi_ptVgen=True,
         )
 
     unfolding_axes = {}
@@ -351,9 +352,17 @@ muon_prefiring_helper, muon_prefiring_helper_stat, muon_prefiring_helper_syst = 
     muon_prefiring.make_muon_prefiring_helpers(era=era)
 )
 
-qcdScaleByHelicity_helper = theory_corrections.make_qcd_uncertainty_helper_by_helicity(
-    is_z=True
-)
+
+if args.unfolding and add_helicity_axis:
+    qcdScaleByHelicity_helper = theory_corrections.make_qcd_uncertainty_helper_by_helicity(
+        is_z=True,
+        filename=f"{common.data_dir}/angularCoefficients/w_z_helicity_xsecs_scetlib_dyturboCorr_maxFiles_m1_unfoldingBinning.hdf5",
+        rebi_ptVgen=False,
+    )
+else:
+    qcdScaleByHelicity_helper = (
+        theory_corrections.make_qcd_uncertainty_helper_by_helicity(is_z=True)
+    )
 
 # extra axes which can be used to label tensor_axes
 if args.binnedScaleFactors:
