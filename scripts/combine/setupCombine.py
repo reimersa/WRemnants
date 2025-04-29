@@ -331,6 +331,12 @@ def make_parser(parser=None):
         """,
     )
     parser.add_argument(
+        "--fitresultPhysicsModel",
+        type=str,
+        default="Basemodel",
+        help="Physics model to use for the fitresult (default is Basemodel)",
+    )
+    parser.add_argument(
         "--fakerateAxes",
         nargs="+",
         help="Axes for the fakerate binning",
@@ -2349,7 +2355,7 @@ if __name__ == "__main__":
             ]
 
         fitresult_hist, fitresult_cov = combinetf2.io_tools.get_postfit_hist_cov(
-            fitresult, channels=channels
+            fitresult, physics_model=args.fitresultPhysicsModel, channels=channels
         )
 
         writer.add_data_covariance(fitresult_cov)
