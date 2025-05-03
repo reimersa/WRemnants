@@ -128,15 +128,17 @@ class HistselectorABCD(object):
         upper_bound_y=None,  # using an upper bound on the abcd y-axis (e.g. isolation)
         integrate_x=True,  # integrate the abcd x-axis in final histogram (allows simplified procedure e.g. for extrapolation method)
         abcdExplicitAxisEdges={},
+        ABCDmode="simple",
     ):
 
+        self.ABCDmode = ABCDmode
         self.abcdExplicitAxisEdges = abcdExplicitAxisEdges
 
         # default thresholds, modifed later based on actual axis edges
         # or if abcdExplicitAxisEdges is provided from outside
         self.abcd_thresholds = {
             "pt": [26, 28, 30],
-            "mt": [0, 20, 40],
+            "mt": [0, 40] if self.ABCDmode == "simple" else [0, 20, 40],
             "iso": [0, 4, 8, 12],
             "relIso": [0, 0.15, 0.3, 0.45],
             "relJetLeptonDiff": [0, 0.2, 0.35, 0.5],
@@ -227,7 +229,9 @@ class HistselectorABCD(object):
                 if len(ts) == len(hist_axis_edges):
                     # consistent number of edges: take them from axis
                     ts = [x for x in hist_axis_edges]
-                    logger.debug(f"ABCD method: using edges {ts} for axis {axis_name}")
+                    logger.warning(
+                        f"ABCD method: using edges {ts} for axis {axis_name}"
+                    )
                 elif len(ts) < len(hist_axis_edges):
                     if all(tsi in hist_axis_edges for i, tsi in enumerate(ts)):
                         # more edges in axis, but default ones are a subset: keep edges from default
@@ -249,7 +253,7 @@ class HistselectorABCD(object):
                         # less edges in axis, but subset of default ones: use them filling remaining elements with None
                         ts = [x for x in hist_axis_edges]
                         ts.extend([None] * (len(ts) - len(hist_axis_edges)))
-                        logger.debug(
+                        logger.warning(
                             f"ABCD method: using edges {ts} for axis {axis_name}"
                         )
                     else:
@@ -266,7 +270,10 @@ class HistselectorABCD(object):
 
             if axis_name in ["mt", "pt"]:
                 # low: failing, high: passing, no upper bound
-                return None, complex(0, ts[2]), complex(0, ts[1]), complex(0, ts[0])
+                if self.ABCDmode == "simple":
+                    return None, complex(0, ts[1]), None, complex(0, ts[0])
+                else:
+                    return None, complex(0, ts[2]), complex(0, ts[1]), complex(0, ts[0])
             if axis_name in ["dxy", "iso", "relIso", "relJetLeptonDiff"]:
                 # need a hack because later on the code expects 4 values, but there might be
                 # only 2 or 3: extend the array with None times the missing items

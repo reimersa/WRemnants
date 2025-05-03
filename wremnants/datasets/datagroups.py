@@ -266,7 +266,7 @@ class Datagroups(object):
         logger.info(f"Set histselector")
         if self.mode[0] != "w":
             return  # histselectors only implemented for single lepton (with fakes)
-        auxiliary_info = {}
+        auxiliary_info = {"ABCDmode": mode}
         signalselector = sel.SignalSelectorABCD
         scale = 1
         if mode == "extended1D":
@@ -347,7 +347,7 @@ class Datagroups(object):
                     self.groups[g].histselector.set_correction(hQCD, axes_names=mcCorr)
             else:
                 self.groups[g].histselector = signalselector(
-                    h, fakerate_axes=self.fakerate_axes, **kwargs
+                    h, fakerate_axes=self.fakerate_axes, **auxiliary_info, **kwargs
                 )
 
     def setGlobalAction(self, action):
