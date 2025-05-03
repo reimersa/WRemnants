@@ -9,55 +9,6 @@ from wums import logging
 
 logger = logging.child_logger(__name__)
 
-# # thresholds,
-# abcd_thresholds = {
-#     "pt": [26, 28, 30],
-#     "mt": [0, 20, 40],
-#     "iso": [0, 4, 8, 12],
-#     "relIso": [0, 0.15, 0.3, 0.45],
-#     "relJetLeptonDiff": [0, 0.2, 0.35, 0.5],
-#     "dxy": [0, 0.01, 0.02, 0.03],
-# }
-
-# # default abcd_variables to look for
-# abcd_variables = (
-#     ("mt", "passMT"),
-#     ("relIso", "passIso"),
-#     ("iso", "passIso"),
-#     ("relJetLeptonDiff", "passIso"),
-#     ("dxy", "passDxy"),
-# )
-
-
-# def get_selection_edges(axis_name, upper_bound=False, hist_axis_edges=None):
-#     # returns edges from pass to fail regions [x0, x1, x2, x3] e.g. x=[x0,x1], dx=[x1,x2], d2x=[x2,x3]
-#     if axis_name in abcd_thresholds:
-#         ts = abcd_thresholds[axis_name]
-#         # TODO: should subsets of edges be accepted ?
-#         # It probably only makes sense to accept it when hist_axis_edges is a subset, but ts already has only 2 bins
-#         if hist_axis_edges is not None and (
-#                 len(ts) != len(hist_axis_edges)
-#                 or any(tsi != hist_axis_edges[i] for i,tsi in enumerate(ts))
-#         ):
-#             # raise RuntimeError(f"Found inconsistent edges {ts} for axis {axis_name}: histogram axis has {hist_axis_edges}")
-#             logger.warning(f"Found inconsistent edges {ts} for axis {axis_name}: histogram axis has {hist_axis_edges}")
-#             ts = [x for x in hist_axis_edges]
-#             logger.warning(f"Setting {axis_name} edges to {ts} in the following calculations")
-
-#         if axis_name in ["mt", "pt"]:
-#             # low: failing, high: passing, no upper bound
-#             return None, complex(0, ts[2]), complex(0, ts[1]), complex(0, ts[0])
-#         if axis_name in ["dxy", "iso", "relIso", "relJetLeptonDiff"]:
-#             # low: passing, high: failing, no upper bound
-#             return (
-#                 complex(0, ts[0]),
-#                 complex(0, ts[1]),
-#                 complex(0, ts[2]),
-#                 (complex(0, ts[3]) if upper_bound else None),
-#             )
-#     else:
-#         raise RuntimeError(f"Can not find threshold for abcd axis {axis_name}")
-
 
 def extend_edges(traits, x):
     # extend array for underflow/overflow with distance from difference of two closest values
@@ -176,9 +127,13 @@ class HistselectorABCD(object):
         rebin_smoothing_axis="automatic",  # can be a list of bin edges, "automatic", or None
         upper_bound_y=None,  # using an upper bound on the abcd y-axis (e.g. isolation)
         integrate_x=True,  # integrate the abcd x-axis in final histogram (allows simplified procedure e.g. for extrapolation method)
+        abcdExplicitAxisEdges={},
     ):
 
+        self.abcdExplicitAxisEdges = abcdExplicitAxisEdges
+
         # default thresholds, modifed later based on actual axis edges
+        # or if abcdExplicitAxisEdges is provided from outside
         self.abcd_thresholds = {
             "pt": [26, 28, 30],
             "mt": [0, 20, 40],
@@ -189,6 +144,8 @@ class HistselectorABCD(object):
         }
 
         # default abcd_variables to look for
+        # Beware that there is a priority logic: mT will be the x axis if found,
+        # then any of the following (the first that is found) will become the y axis
         self.abcd_variables = (
             ("mt", "passMT"),
             ("relIso", "passIso"),
@@ -196,6 +153,28 @@ class HistselectorABCD(object):
             ("relJetLeptonDiff", "passIso"),
             ("dxy", "passDxy"),
         )
+
+        if self.abcdExplicitAxisEdges:
+            for k in self.abcdExplicitAxisEdges:
+                new_edges = self.abcdExplicitAxisEdges[k]
+                if k in self.abcd_thresholds:
+                    # change default
+                    old_edges = self.abcd_thresholds[k]
+                    logger.warning(
+                        f"ABCD method: default edges for axis {k} changed from {old_edges} to {new_edges}"
+                    )
+                    self.abcd_thresholds[k] = new_edges
+                else:
+                    # add new axes for enhanced flexibility
+                    # although it might be safer to just raise an error
+                    logger.warning(
+                        f"ABCD method: adding new axis {k} with default edges {new_edges}"
+                    )
+                    self.abcd_thresholds[k] = new_edges
+                    self.abcd_variables = (
+                        *self.abcd_variables,
+                        (k, f"pass{k.capitalize()}"),
+                    )
 
         self.upper_bound_y = upper_bound_y
         self.integrate_x = integrate_x
@@ -243,19 +222,47 @@ class HistselectorABCD(object):
     def get_selection_edges(self, axis_name, upper_bound=False, hist_axis_edges=None):
         # returns edges from pass to fail regions [x0, x1, x2, x3] e.g. x=[x0,x1], dx=[x1,x2], d2x=[x2,x3]
         if axis_name in self.abcd_thresholds:
-            # ts = self.abcd_thresholds[axis_name]
-            # if hist_axis_edges is not None and (
-            #         len(ts) != len(hist_axis_edges)
-            #         or any(tsi != hist_axis_edges[i] for i,tsi in enumerate(ts))
-            # ):
-            #     logger.warning(f"Found inconsistent edges {ts} for axis {axis_name}: histogram axis has {hist_axis_edges}")
-            #     ts = [x for x in hist_axis_edges]
-            #     logger.warning(f"Setting {axis_name} edges to {ts} in the following calculations")
-            ts = (
-                self.abcd_thresholds[axis_name]
-                if hist_axis_edges is None
-                else [x for x in hist_axis_edges]
-            )
+            ts = self.abcd_thresholds[axis_name]
+            if hist_axis_edges is not None:
+                if len(ts) == len(hist_axis_edges):
+                    # consistent number of edges: take them from axis
+                    ts = [x for x in hist_axis_edges]
+                    logger.debug(f"ABCD method: using edges {ts} for axis {axis_name}")
+                elif len(ts) < len(hist_axis_edges):
+                    if all(tsi in hist_axis_edges for i, tsi in enumerate(ts)):
+                        # more edges in axis, but default ones are a subset: keep edges from default
+                        logger.warning(
+                            f"ABCD method: using subset of edges {ts} for axis {axis_name}, out of {hist_axis_edges}"
+                        )
+                    else:
+                        logger.warning(
+                            f"Axis {axis_name} has inconsistent edges ({hist_axis_edges}): expected {ts}"
+                        )
+                        logger.warning(
+                            f"Please, explicitly provide the edges to be used for ABCD method."
+                        )
+                        raise RuntimeError(
+                            f"Inconsistent edges for ABCD method with axis {axis_name}."
+                        )
+                else:
+                    if all(xi in ts for i, xi in enumerate(hist_axis_edges)):
+                        # less edges in axis, but subset of default ones: use them filling remaining elements with None
+                        ts = [x for x in hist_axis_edges]
+                        ts.extend([None] * (len(ts) - len(hist_axis_edges)))
+                        logger.debug(
+                            f"ABCD method: using edges {ts} for axis {axis_name}"
+                        )
+                    else:
+                        # less edges in axis but also inconsistent: request the user to explicitly provide what to use
+                        logger.warning(
+                            f"ABCD method: axis {axis_name} has less edges ({hist_axis_edges}) than expected ({ts})"
+                        )
+                        logger.warning(
+                            f"and inconsistent too. Please, explicitly provide the edges to use"
+                        )
+                        raise RuntimeError(
+                            f"Inconsistent edges for ABCD method with axis {axis_name}."
+                        )
 
             if axis_name in ["mt", "pt"]:
                 # low: failing, high: passing, no upper bound

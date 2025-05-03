@@ -260,6 +260,7 @@ class Datagroups(object):
         simultaneousABCD=False,
         forceGlobalScaleFakes=None,
         mcCorr=["pt", "eta"],
+        abcdExplicitAxisEdges={},
         **kwargs,
     ):
         logger.info(f"Set histselector")
@@ -317,6 +318,7 @@ class Datagroups(object):
                     smoothing_order_fakerate=smoothingOrderFakerate,
                     smoothing_order_spectrum=smoothingOrderSpectrum,
                     smoothing_polynomial_spectrum=smoothingPolynomialSpectrum,
+                    abcdExplicitAxisEdges=abcdExplicitAxisEdges,
                     **auxiliary_info,
                     **kwargs,
                 )
