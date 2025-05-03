@@ -386,6 +386,17 @@ def make_parser(parser=None):
         help="Order of the polynomial for the smoothing of the application region or full prediction, depending on the smoothing mode",
     )
     parser.add_argument(
+        "--ABCDedgesByAxis",
+        type=str,
+        nargs="+",
+        default=[],
+        help="""
+        Edges for ABCD method given an axis. Syntax is --ABCDedgesByAxis 'nameX=x1,x2,x3' 'nameY=y1,y2,y3'
+        Values after = are converted into float internally.
+        Can specify only one axis or two (potentially more).
+        """,
+    )
+    parser.add_argument(
         "--allowNegativeExpectation",
         action="store_true",
         help="Allow processes to have negative contributions",
@@ -996,6 +1007,12 @@ def setup(
     if args.qcdProcessName:
         datagroups.fakeName = args.qcdProcessName
 
+    abcdExplicitAxisEdges = {}
+    if len(args.ABCDedgesByAxis):
+        for item in args.ABCDedgesByAxis:
+            ax_name, ax_edges = item.split("=")
+            abcdExplicitAxisEdges[ax_name] = [float(x) for x in ax_edges.split(",")]
+
     if wmass and not xnorm:
         datagroups.fakerate_axes = args.fakerateAxes
         histselector_kwargs = dict(
@@ -1006,6 +1023,7 @@ def setup(
             mcCorr=args.fakeMCCorr,
             integrate_x="mt" not in fitvar,
             forceGlobalScaleFakes=args.forceGlobalScaleFakes,
+            abcdExplicitAxisEdges=abcdExplicitAxisEdges,
         )
         datagroups.set_histselectors(
             datagroups.getNames(), inputBaseName, **histselector_kwargs
@@ -2441,21 +2459,25 @@ if __name__ == "__main__":
         )
 
         if len(args.fitresult) > 1:
-            channels = args.fitresult[1:]
-            fitresult_lumi = [
-                fitresult_meta["meta_info_input"]["channel_info"][c]["lumi"]
-                for c in channels
-            ]
+            physics_model = args.fitresult[1]
+        else:
+            physics_model = "Basemodel"
+
+        if len(args.fitresult) > 2:
+            channels = args.fitresult[2:]
         else:
             channels = None
-            fitresult_lumi = [
-                c["lumi"]
-                for c in fitresult_meta["meta_info_input"]["channel_info"].values()
-            ]
 
-        fitresult_hist, fitresult_cov = combinetf2.io_tools.get_postfit_hist_cov(
-            fitresult, channels=channels
+        fitresult_hist, fitresult_cov, fitresult_channels = (
+            combinetf2.io_tools.get_postfit_hist_cov(
+                fitresult, physics_model=physics_model, channels=channels
+            )
         )
+
+        fitresult_lumi = [
+            fitresult_meta["meta_info_input"]["channel_info"][c]["lumi"]
+            for c in fitresult_channels
+        ]
 
         writer.add_data_covariance(fitresult_cov)
 
