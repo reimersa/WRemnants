@@ -695,7 +695,7 @@ jobs:
         run: >- 
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run.sh combinetf2_fit.py 
           '$WREMNANTS_OUTDIR/ZMassWLike_eta_pt_charge/ZMassWLike.hdf5'
-          -t 0 --computeHistErrors --saveHists --saveHistsPerProcess --doImpacts --pseudoData uncorr --postfix uncorr
+          -t 0 --unblind 'r:.*' --computeHistErrors --saveHists --saveHistsPerProcess --doImpacts --pseudoData uncorr --postfix uncorr
           -o '$WREMNANTS_OUTDIR/ZMassWLike_eta_pt_charge/'
 
       - name: wlike prefit plot
@@ -867,7 +867,7 @@ jobs:
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run.sh combinetf2_fit.py 
           $WREMNANTS_OUTDIR/ZMassDilepton_ptll_yll/ZMassDilepton.hdf5
-          -t 0 --computeHistErrors --saveHists --saveHistsPerProcess --doImpacts
+          -t -1 --computeHistErrors --saveHists --saveHistsPerProcess --doImpacts
           -o '$WREMNANTS_OUTDIR/ZMassDilepton_ptll_yll/'
 
       - name: alphaS impacts
