@@ -666,13 +666,6 @@ def get_systematics_label(key, idx=0):
     return key
 
 
-for i_hel in range(0, 9):
-    for ipt in range(0, 17):
-        for iy in range(0, 10):
-            k = f"Z_ptVGen{ipt}_absYVGen{iy}_helicitySig{i_hel}"
-            systematics_labels[k] = get_systematics_label(k)
-
-
 def get_labels_colors_procs_sorted(procs):
     # order of the processes in the plots by this list
     procs_sort = [

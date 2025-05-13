@@ -132,6 +132,15 @@ if args.useTheoryAgnosticBinning:
     axis_ptV_thag = theoryAgnostic_axes[0]
     dilepton_ptV_binning = axis_ptV_thag.edges
 
+if "yll" in args.axes:
+    # use 10 quantiles in case "yll" is used as nominal axis
+    edges_yll = common.yll_10quantiles_binning
+    edges_absYll = edges_yll[len(edges_yll) // 2 :]
+    axis_yll = hist.axis.Variable(edges_yll, name="yll")
+    axis_absYll = hist.axis.Variable(edges_absYll, name="absYll", underflow=False)
+else:
+    axis_yll = hist.axis.Regular(20, -2.5, 2.5, name="yll")
+    axis_absYll = hist.axis.Regular(10, 0.0, 2.5, name="absYll", underflow=False)
 
 # available axes for dilepton validation plots
 all_axes = {
@@ -166,8 +175,8 @@ all_axes = {
         ],
         name="mll",
     ),
-    "yll": hist.axis.Regular(20, -2.5, 2.5, name="yll"),
-    "absYll": hist.axis.Regular(10, 0.0, 2.5, name="absYll", underflow=False),
+    "yll": axis_yll,
+    "absYll": axis_absYll,
     "ptll": hist.axis.Variable(dilepton_ptV_binning, name="ptll", underflow=False),
     "etaPlus": hist.axis.Variable([-2.4, -1.2, -0.3, 0.3, 1.2, 2.4], name="etaPlus"),
     "etaMinus": hist.axis.Variable([-2.4, -1.2, -0.3, 0.3, 1.2, 2.4], name="etaMinus"),
@@ -276,8 +285,6 @@ if args.csVarsHist:
         underflow=False,
         overflow=False,
     )
-    # 10 quantiles
-    all_axes["yll"] = hist.axis.Variable(common.yll_10quantiles_binning, name="yll")
 
     quantile_file = f"{common.data_dir}/angularCoefficients/mz_dilepton_scetlib_dyturboCorr_maxFiles_m1_csQuantiles.hdf5"
     quantile_helper_csVars = make_quantile_helper(
