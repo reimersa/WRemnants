@@ -147,9 +147,16 @@ parser.add_argument(
     help="Add axis with slices of luminosity based on run numbers",
 )
 parser.add_argument(
+    "--nRunBins",
+    type=int,
+    default=5,
+    choices=range(2, 6),
+    help="Number of bins to use with --addRunAxis (hardcoded luminosity splitting inside)",
+)
+parser.add_argument(
     "--randomizeDataByRun",
     action="store_true",
-    help="When adding the run axis with --addRunAxis, randomly put data and MC events into the various bins (for tests with 2 bins, it uses odd/even events for now)",
+    help="When adding the run axis with --addRunAxis, randomly put data events into the various bins",
 )
 
 #
@@ -773,14 +780,22 @@ def build_graph(df, dataset):
     cols = nominal_cols
 
     if args.addRunAxis:
-        # run_edges = [278768, 280385, 284044]
-        # lumi_edges = [0.0, 0.48013, 1.0]
-        # run_edges = [278768, 279767, 283270, 284044]
-        # lumi_edges = [0.0, 0.25749, 0.72954, 1.0]
-        # run_edges = [278768, 279767, 280385, 283270, 284044]
-        # lumi_edges = [0.0, 0.25749, 0.48013, 0.72954, 1.0]
-        run_edges = [278768, 279588, 280017, 282037, 283478, 284044]
-        lumi_edges = [0.0, 0.13871, 0.371579, 0.6038544, 0.836724, 1.0]
+        if args.nRunBins == 2:
+            run_edges = [278768, 280385, 284044]
+            lumi_edges = [0.0, 0.48013, 1.0]
+        elif args.nRunBins == 3:
+            run_edges = [278768, 279767, 283270, 284044]
+            lumi_edges = [0.0, 0.25749, 0.72954, 1.0]
+        elif args.nRunBins == 4:
+            run_edges = [278768, 279767, 280385, 283270, 284044]
+            lumi_edges = [0.0, 0.25749, 0.48013, 0.72954, 1.0]
+        elif args.nRunBins == 5:
+            run_edges = [278768, 279588, 280017, 282037, 283478, 284044]
+            lumi_edges = [0.0, 0.13871, 0.371579, 0.6038544, 0.836724, 1.0]
+        else:
+            raise NotImplementedError(
+                "Invalid number of bins ({args.nRunBins}) passed to --nRunBins."
+            )
         run_bin_centers = [
             int(0.5 * (run_edges[i + 1] + run_edges[i]))
             for i in range(len(run_edges) - 1)
@@ -806,17 +821,17 @@ def build_graph(df, dataset):
         )
         if dataset.is_data:
             if args.randomizeDataByRun:
-                df = df.Define("run4axis", "isEvenEvent ? 280000 : 281000")
-            else:
-                df = df.Alias("run4axis", "run")
-        else:
-            if args.randomizeDataByRun:
-                df = df.Define("run4axis", "isEvenEvent ? 280000 : 281000")
-            else:
                 df = df.Define(
                     "run4axis",
                     "wrem::get_dummy_run_by_lumi_quantile(run, luminosityBlock, event, lumiEdges, runVals)",
                 )
+            else:
+                df = df.Alias("run4axis", "run")
+        else:
+            df = df.Define(
+                "run4axis",
+                "wrem::get_dummy_run_by_lumi_quantile(run, luminosityBlock, event, lumiEdges, runVals)",
+            )
         cols = [*cols, "run4axis"]
 
     if args.unfolding and isWmunu:

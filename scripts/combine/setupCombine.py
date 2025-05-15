@@ -18,7 +18,10 @@ from wremnants import (
     theory_tools,
 )
 from wremnants.datasets.datagroups import Datagroups
-from wremnants.histselections import FakeSelectorSimpleABCD
+from wremnants.histselections import (
+    FakeSelectorSimpleABCD,
+    scale_hist_up_down_corr_from_file,
+)
 from wremnants.regression import Regressor
 from wremnants.syst_tools import massWeightNames
 from wums import boostHistHelpers as hh
@@ -222,9 +225,14 @@ def make_parser(parser=None):
         help="Restrict axis to this range (assumes pairs of values by axis, with trailing axes optional)",
     )
     parser.add_argument(
+        "--axlimById",
+        action="store_true",
+        help="With --axlim select bin indices rather than values to define the range (second bin is excluded)",
+    )
+    parser.add_argument(
         "--rebinBeforeSelection",
         action="store_true",
-        help="Rebin before the selection operation (e.g. before fake rate computation), default if after",
+        help="Rebin before the selection operation (e.g. before fake rate computation), default is after",
     )
     parser.add_argument(
         "--lumiUncertainty",
@@ -251,6 +259,13 @@ def make_parser(parser=None):
             when the argument of lumiScale is larger than unity, because bin-by-bin fluctuations will not be covered by the assumed uncertainty. 
             For data, this only has an effect for the data-driven estimate of the QCD multijet background through the uncertainty propagation from them data-MC subtraction.
             """,
+    )
+    parser.add_argument(
+        "--procsWithoutLumiNorm",
+        type=str,
+        nargs="*",
+        help="Do not apply luminosity norm uncertainty on these processes (Data, Fake, and QCD are already automatically excluded)",
+        default=[],
     )
     parser.add_argument(
         "--fitXsec", action="store_true", help="Fit signal inclusive cross section"
@@ -329,6 +344,11 @@ def make_parser(parser=None):
         help="Customize what uncertainties to decorrelate by run, to facilitate tests (note: effi is for both effStat and effSyst, while effisyst is only for effSyst).",
     )
     parser.add_argument(
+        "--residualEffiSFasUncertainty",
+        action="store_true",
+        help="When decorrelating by run, add custom systematic uncertainty for residual efficiency scale factors.",
+    )
+    parser.add_argument(
         "--fitresult",
         type=str,
         nargs="+",
@@ -383,7 +403,7 @@ def make_parser(parser=None):
         type=str,
         default="chebyshev",
         choices=Regressor.polynomials,
-        help="Order of the polynomial for the smoothing of the application region or full prediction, depending on the smoothing mode",
+        help="Type of polynomial for the smoothing of the application region or full prediction, depending on the smoothing mode",
     )
     parser.add_argument(
         "--ABCDedgesByAxis",
@@ -837,6 +857,7 @@ def setup(
             args.absval,
             args.rebinBeforeSelection,
             rename=False,
+            ax_lim_by_id=args.axlimById,
         )
 
     wmass = datagroups.mode[0] == "w"
@@ -1122,6 +1143,11 @@ def setup(
     datagroups.addProcessGroup(
         "MCnoQCD",
         excludeMatch=["QCD", "Data", "Fake"],
+    )
+    procsWithoutLumiNorm = ["QCD", "Data", "Fake"] + args.procsWithoutLumiNorm
+    datagroups.addProcessGroup(
+        "MCwithLumiNorm",
+        excludeMatch=procsWithoutLumiNorm,
     )
     # FIXME/FOLLOWUP: the following groups may actually not exclude the OOA when it is not defined as an independent process with specific name
     datagroups.addProcessGroup(
@@ -1558,7 +1584,7 @@ def setup(
         if "lumi" in args.decorrSystByRun and "run" in fitvar:
             datagroups.addSystematic(
                 name="lumi",
-                processes=["MCnoQCD"],
+                processes=["MCwithLumiNorm"],
                 groups=[f"luminosity", "experiment", "expNoCalib"],
                 passToFakes=passSystToFakes,
                 baseName="lumi_",
@@ -1579,7 +1605,7 @@ def setup(
         else:
             datagroups.addSystematic(
                 name="lumi",
-                processes=["MCnoQCD"],
+                processes=["MCwithLumiNorm"],
                 groups=[f"luminosity", "experiment", "expNoCalib"],
                 passToFakes=passSystToFakes,
                 outNames=["lumiDown", "lumiUp"],
@@ -1597,7 +1623,7 @@ def setup(
     else:
         datagroups.addNormSystematic(
             name="lumi",
-            processes=["MCnoQCD"],
+            processes=["MCwithLumiNorm"],
             groups=[f"luminosity", "experiment", "expNoCalib"],
             passToFakes=passSystToFakes,
             norm=(
@@ -2123,6 +2149,56 @@ def setup(
             )
 
         return datagroups
+
+    # add dedicated uncertainties from residual corrections read from a file
+    # implemented by modifying the nominal histogram
+    if "run" in fitvar and args.residualEffiSFasUncertainty:
+        ## action to apply corrections and move from nominal to alternate histogram in input
+        preOpCorrAction = scale_hist_up_down_corr_from_file
+        preOpCorrActionArgs = dict(
+            corr_file="/scratch/ciprianm/plots/fromMyWremnants/testEfficiencies/efficiencyCorrectionByRun_Wlike/test/dataMC_ZmumuEffCorr_eta_4runBins.pkl.lz4",
+            corr_hist="dataMC_ZmumuEffCorr_eta_runBin",
+        )
+        #
+        logger.warning(
+            "Adding uncertainty for residual efficiency corrections decorrelated by run and eta"
+        )
+        #
+        datagroups.addSystematic(
+            name="residualEffiSF",
+            processes=["MCnoQCD"],
+            groups=["residualEffiSF", "experiment", "expNoCalib"],
+            baseName="residualEffiSF_",
+            systAxes=["eta_", "run_", "downUpVar"],
+            labelsByAxis=["eta", "run", "downUpVar"],
+            passToFakes=passSystToFakes,
+            preOp=preOpCorrAction,
+            preOpArgs=preOpCorrActionArgs,
+            action=syst_tools.decorrelateByAxes,
+            actionArgs=dict(
+                axesToDecorrNames=["eta", "run"], newDecorrAxesNames=["eta_", "run_"]
+            ),
+            actionRequiresNomi=True,
+        )
+        #
+        logger.warning(
+            "Adding uncertainty for residual efficiency corrections decorrelated by run inclusive in eta"
+        )
+        #
+        datagroups.addSystematic(
+            name="residualEffiSF",
+            processes=["MCnoQCD"],
+            groups=["residualEffiSF", "experiment", "expNoCalib"],
+            baseName="residualEffiSF_",
+            systAxes=["run_", "downUpVar"],
+            labelsByAxis=["run", "downUpVar"],
+            passToFakes=passSystToFakes,
+            preOp=preOpCorrAction,
+            preOpArgs=preOpCorrActionArgs,
+            action=syst_tools.decorrelateByAxes,
+            actionArgs=dict(axesToDecorrNames=["run"], newDecorrAxesNames=["run_"]),
+            actionRequiresNomi=True,
+        )
 
     # Below: all that is highPU specific
 

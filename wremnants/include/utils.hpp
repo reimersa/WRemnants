@@ -854,20 +854,14 @@ private:
   std::vector<std::mt19937> rng_;
 };
 
-// hardcoded functions to do stuff with run splitting in MC
-// should define a helper to have flexibility to set the internal arrays once at
-// run-time
+// function to do stuff with run splitting in MC should define a helper
+// to have flexibility to set the internal arrays once at run-time
 unsigned int get_dummy_run_by_lumi_quantile(const unsigned int run,
                                             const unsigned int lumi,
                                             const unsigned long long event,
                                             const Vec_d lumi_edges,
                                             const Vec_ui run_vals) {
 
-  // hardcoded list of lumi ranges for now
-  // std::array<double> lumi_edges = {0.0, 0.48013, 1.0};
-  // std::array<unsigned int> run_vals = {279000, 282000};
-  // std::array<double> lumi_edges = {0.0, 0.25749, 0.48013, 0.72954, 1.0};
-  // std::array<unsigned int> run_vals = {279000, 280000, 281000, 284000};
   std::seed_seq seq{std::size_t(run), std::size_t(lumi), std::size_t(event)};
   std::mt19937 rng(seq);
 

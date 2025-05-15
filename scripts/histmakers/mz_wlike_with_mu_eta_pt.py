@@ -96,10 +96,25 @@ parser.add_argument(
     action="store_true",
     help="Add axis with slices of luminosity based on run numbers",
 )
+parser.add_argument(
+    "--nRunBins",
+    type=int,
+    default=5,
+    choices=range(2, 6),
+    help="Number of bins to use with --addRunAxis (hardcoded luminosity splitting inside)",
+)
+parser.add_argument(
+    "--randomizeDataByRun",
+    action="store_true",
+    help="When adding the run axis with --addRunAxis, randomly put data events into the various bins",
+)
 
 args = parser.parse_args()
 logger = logging.setup_logger(__file__, args.verbose, args.noColorLogger)
 isFloatingPOIsTheoryAgnostic = args.theoryAgnostic and not args.poiAsNoi
+
+if args.randomizeDataByRun and not args.addRunAxis:
+    raise ValueError("Options --randomizeDataByRun only works with --addRunAxis.")
 
 if isFloatingPOIsTheoryAgnostic:
     raise ValueError(
@@ -473,14 +488,22 @@ def build_graph(df, dataset):
     cols = nominal_cols
 
     if args.addRunAxis:
-        # run_edges = [278768, 280385, 284044]
-        # lumi_edges = [0.0, 0.48013, 1.0]
-        # run_edges = [278768, 279767, 283270, 284044]
-        # lumi_edges = [0.0, 0.25749, 0.72954, 1.0]
-        run_edges = [278768, 279767, 280385, 283270, 284044]
-        lumi_edges = [0.0, 0.25749, 0.48013, 0.72954, 1.0]
-        # run_edges = [278768, 279588, 280017, 282037, 283478, 284044]
-        # lumi_edges = [0.0, 0.13871, 0.371579, 0.6038544, 0.836724, 1.0]
+        if args.nRunBins == 2:
+            run_edges = [278768, 280385, 284044]
+            lumi_edges = [0.0, 0.48013, 1.0]
+        elif args.nRunBins == 3:
+            run_edges = [278768, 279767, 283270, 284044]
+            lumi_edges = [0.0, 0.25749, 0.72954, 1.0]
+        elif args.nRunBins == 4:
+            run_edges = [278768, 279767, 280385, 283270, 284044]
+            lumi_edges = [0.0, 0.25749, 0.48013, 0.72954, 1.0]
+        elif args.nRunBins == 5:
+            run_edges = [278768, 279588, 280017, 282037, 283478, 284044]
+            lumi_edges = [0.0, 0.13871, 0.371579, 0.6038544, 0.836724, 1.0]
+        else:
+            raise NotImplementedError(
+                "Invalid number of bins ({args.nRunBins}) passed to --nRunBins."
+            )
         run_bin_centers = [
             int(0.5 * (run_edges[i + 1] + run_edges[i]))
             for i in range(len(run_edges) - 1)
@@ -505,7 +528,13 @@ def build_graph(df, dataset):
             + "}; return res;",
         )
         if dataset.is_data:
-            df = df.Alias("run4axis", "run")
+            if args.randomizeDataByRun:
+                df = df.Define(
+                    "run4axis",
+                    "wrem::get_dummy_run_by_lumi_quantile(run, luminosityBlock, event, lumiEdges, runVals)",
+                )
+            else:
+                df = df.Alias("run4axis", "run")
         else:
             df = df.Define(
                 "run4axis",
@@ -711,7 +740,7 @@ def build_graph(df, dataset):
         df = df.Define("weight_vtx", vertex_helper, ["GenVtx_z", "Pileup_nTrueInt"])
 
         if era == "2016PostVFP":
-            if args.addRunAxis:
+            if args.addRunAxis and not args.randomizeDataByRun:
                 df = df.Define(
                     "weight_newMuonPrefiringSF_BG",
                     muon_prefiring_helper_BG,
@@ -1428,7 +1457,7 @@ def build_graph(df, dataset):
                 muons="nonTrigMuons",
             )
 
-        if era == "2016PostVFP" and args.addRunAxis:
+        if era == "2016PostVFP" and args.addRunAxis and not args.randomizeDataByRun:
             # to simplify the code, use helper with largest uncertainty for all eras when splitting data
             df = syst_tools.add_L1Prefire_unc_hists(
                 results,

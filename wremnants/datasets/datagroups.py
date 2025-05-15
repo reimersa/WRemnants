@@ -1028,11 +1028,17 @@ class Datagroups(object):
         ax_absval=[],
         rebin_before_selection=False,
         rename=True,
+        ax_lim_by_id=False,
     ):
         self.rebinBeforeSelection = rebin_before_selection
 
         for a in hh.get_rebin_actions(
-            axes, ax_lim=ax_lim, ax_rebin=ax_rebin, ax_absval=ax_absval, rename=rename
+            axes,
+            ax_lim=ax_lim,
+            ax_rebin=ax_rebin,
+            ax_absval=ax_absval,
+            rename=rename,
+            ax_lim_by_id=ax_lim_by_id,
         ):
             self.setRebinOp(a)
 
