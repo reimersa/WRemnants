@@ -1028,7 +1028,6 @@ class Datagroups(object):
         ax_absval=[],
         rebin_before_selection=False,
         rename=True,
-        ax_lim_by_id=False,
     ):
         self.rebinBeforeSelection = rebin_before_selection
 
@@ -1038,7 +1037,6 @@ class Datagroups(object):
             ax_rebin=ax_rebin,
             ax_absval=ax_absval,
             rename=rename,
-            ax_lim_by_id=ax_lim_by_id,
         ):
             self.setRebinOp(a)
 

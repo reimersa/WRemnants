@@ -219,15 +219,13 @@ def make_parser(parser=None):
     )
     parser.add_argument(
         "--axlim",
-        type=float,
+        type=complex,
         default=[],
         nargs="*",
-        help="Restrict axis to this range (assumes pairs of values by axis, with trailing axes optional)",
-    )
-    parser.add_argument(
-        "--axlimById",
-        action="store_true",
-        help="With --axlim select bin indices rather than values to define the range (second bin is excluded)",
+        help="""
+        Restrict axis to this range or these bins (assumes pairs of values by axis, with trailing axes optional).
+        Arguments must be pure real or pure imaginary numbers to select bin indices or values, respectively.
+        """,
     )
     parser.add_argument(
         "--rebinBeforeSelection",
@@ -345,8 +343,9 @@ def make_parser(parser=None):
     )
     parser.add_argument(
         "--residualEffiSFasUncertainty",
-        action="store_true",
-        help="When decorrelating by run, add custom systematic uncertainty for residual efficiency scale factors.",
+        type=int,
+        default=0,
+        help="When decorrelating by N run bins (specify N), add custom systematic uncertainty for residual efficiency scale factors.",
     )
     parser.add_argument(
         "--fitresult",
@@ -857,7 +856,6 @@ def setup(
             args.absval,
             args.rebinBeforeSelection,
             rename=False,
-            ax_lim_by_id=args.axlimById,
         )
 
     wmass = datagroups.mode[0] == "w"
@@ -1671,19 +1669,21 @@ def setup(
 
         if args.logNormalFake > 0.0:
             if "fakenorm" in args.decorrSystByRun and "run" in fitvar:
-                datagroups.addNormSystematic(
+                datagroups.addSystematic(
                     name=f"CMS_{datagroups.fakeName}",
                     processes=[datagroups.fakeName],
                     groups=["Fake", "experiment", "expNoCalib"],
                     passToFakes=False,
-                    norm=args.logNormalFake,
-                    systAxes=["run_"],
-                    labelsByAxis=["run"],
+                    baseName=f"CMS_{datagroups.fakeName}_",
+                    systAxes=["run_", "downUpVar"],
+                    labelsByAxis=["run", "downUpVar"],
                     actionRequiresNomi=True,
                     action=syst_tools.decorrelateByAxes,
                     actionArgs=dict(
                         axesToDecorrNames=["run"], newDecorrAxesNames=["run_"]
                     ),
+                    preOp=scale_hist_up_down,
+                    preOpArgs={"scale": args.logNormalFake},
                 )
             else:
                 datagroups.addNormSystematic(
@@ -2152,11 +2152,12 @@ def setup(
 
     # add dedicated uncertainties from residual corrections read from a file
     # implemented by modifying the nominal histogram
-    if "run" in fitvar and args.residualEffiSFasUncertainty:
+    if "run" in fitvar and args.residualEffiSFasUncertainty > 0:
         ## action to apply corrections and move from nominal to alternate histogram in input
+        corr_input_path = "/scratch/ciprianm/plots/fromMyWremnants/testEfficiencies/efficiencyCorrectionByRun_Wlike/test/"
         preOpCorrAction = scale_hist_up_down_corr_from_file
         preOpCorrActionArgs = dict(
-            corr_file="/scratch/ciprianm/plots/fromMyWremnants/testEfficiencies/efficiencyCorrectionByRun_Wlike/test/dataMC_ZmumuEffCorr_eta_4runBins.pkl.lz4",
+            corr_file=f"{corr_input_path}/dataMC_ZmumuEffCorr_eta_{args.residualEffiSFasUncertainty}runBins.pkl.lz4",
             corr_hist="dataMC_ZmumuEffCorr_eta_runBin",
         )
         #
@@ -2477,6 +2478,16 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     logger = logging.setup_logger(__file__, args.verbose, args.noColorLogger)
+
+    if args.axlim:
+        if not all(x.real == 0 or x.imag == 0 for x in args.axlim):
+            raise ValueError(
+                "Option --axlim only accepts pure real or imaginary numbers"
+            )
+        if any(x.imag == 0 and (x.real % 1) != 0.0 for x in args.axlim):
+            raise ValueError(
+                "Option --axlim requires real numbers to be of integer type"
+            )
 
     isUnfolding = args.analysisMode == "unfolding"
     isTheoryAgnostic = args.analysisMode in [
