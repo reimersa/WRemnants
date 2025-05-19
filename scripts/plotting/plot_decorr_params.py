@@ -98,6 +98,11 @@ if __name__ == "__main__":
         "--showMCInput", action="store_true", help="Show MC input value in the plot"
     )
     parser.add_argument(
+        "--showInclusiveDiff",
+        action="store_true",
+        help="Print shift between inclusive and nominal (reference), if inclusive was given",
+    )
+    parser.add_argument(
         "--title",
         type=str,
         default=None,
@@ -469,6 +474,20 @@ if __name__ == "__main__":
                 y_chi2,
                 text_size=args.legSize,
             )
+
+            if args.showInclusiveDiff:
+                plot_tools.wrap_text(
+                    [
+                        r"$\Delta\mathit{m}_\mathrm{"
+                        + str(proc)
+                        + r"}^\mathrm{Incl} =$ "
+                        + f"{round(c, 1)}",
+                    ],
+                    ax1,
+                    x_chi2,
+                    y_chi2 + 0.14,
+                    text_size=args.legSize,
+                )
 
             ax1.fill_between(
                 [c - c_err, c + c_err], ylim[0], ylim[1], color="gray", alpha=0.3
