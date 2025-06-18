@@ -38,6 +38,7 @@ from wremnants.datasets.dataset_tools import getDatasets
 from wremnants.helicity_utils_polvar import makehelicityWeightHelper_polvar
 from wremnants.histmaker_tools import (
     aggregate_groups,
+    get_run_lumi_edges,
     scale_to_data,
     write_analysis_output,
 )
@@ -140,23 +141,6 @@ parser.add_argument(
     "--forceValidCVH",
     action="store_true",
     help="When not applying muon scale corrections (--muonCorrData none / --muonCorrMC none), require at list that the CVH corrected variables are valid",
-)
-parser.add_argument(
-    "--addRunAxis",
-    action="store_true",
-    help="Add axis with slices of luminosity based on run numbers",
-)
-parser.add_argument(
-    "--nRunBins",
-    type=int,
-    default=5,
-    choices=range(2, 6),
-    help="Number of bins to use with --addRunAxis (hardcoded luminosity splitting inside)",
-)
-parser.add_argument(
-    "--randomizeDataByRun",
-    action="store_true",
-    help="When adding the run axis with --addRunAxis, randomly put data events into the various bins",
 )
 
 #
@@ -473,14 +457,6 @@ axis_recoWpt = hist.axis.Regular(
 muon_prefiring_helper, muon_prefiring_helper_stat, muon_prefiring_helper_syst = (
     muon_prefiring.make_muon_prefiring_helpers(era=era)
 )
-(
-    muon_prefiring_helper_BG,
-    muon_prefiring_helper_stat_BG,
-    muon_prefiring_helper_syst_BG,
-) = muon_prefiring.make_muon_prefiring_helpers(era="2016BG")
-muon_prefiring_helper_H, muon_prefiring_helper_stat_H, muon_prefiring_helper_syst_H = (
-    muon_prefiring.make_muon_prefiring_helpers(era="2016H")
-)
 
 qcdScaleByHelicity_helper = theory_corrections.make_qcd_uncertainty_helper_by_helicity()
 
@@ -780,22 +756,7 @@ def build_graph(df, dataset):
     cols = nominal_cols
 
     if args.addRunAxis:
-        if args.nRunBins == 2:
-            run_edges = [278768, 280385, 284044]
-            lumi_edges = [0.0, 0.48013, 1.0]
-        elif args.nRunBins == 3:
-            run_edges = [278768, 279767, 283270, 284044]
-            lumi_edges = [0.0, 0.25749, 0.72954, 1.0]
-        elif args.nRunBins == 4:
-            run_edges = [278768, 279767, 280385, 283270, 284044]
-            lumi_edges = [0.0, 0.25749, 0.48013, 0.72954, 1.0]
-        elif args.nRunBins == 5:
-            run_edges = [278768, 279588, 280017, 282037, 283478, 284044]
-            lumi_edges = [0.0, 0.13871, 0.371579, 0.6038544, 0.836724, 1.0]
-        else:
-            raise NotImplementedError(
-                "Invalid number of bins ({args.nRunBins}) passed to --nRunBins."
-            )
+        run_edges, lumi_edges = get_run_lumi_edges(args.nRunBins, era)
         run_bin_centers = [
             int(0.5 * (run_edges[i + 1] + run_edges[i]))
             for i in range(len(run_edges) - 1)
@@ -1139,6 +1100,19 @@ def build_graph(df, dataset):
         df = df.Define("weight_vtx", vertex_helper, ["GenVtx_z", "Pileup_nTrueInt"])
         if era == "2016PostVFP":
             if args.addRunAxis and not args.randomizeDataByRun:
+                # define helpers for prefiring in each sub era
+                ## TODO: modify main helper to accept era directly as an argument
+                (
+                    muon_prefiring_helper_BG,
+                    muon_prefiring_helper_stat_BG,
+                    muon_prefiring_helper_syst_BG,
+                ) = muon_prefiring.make_muon_prefiring_helpers(era="2016BG")
+                (
+                    muon_prefiring_helper_H,
+                    muon_prefiring_helper_stat_H,
+                    muon_prefiring_helper_syst_H,
+                ) = muon_prefiring.make_muon_prefiring_helpers(era="2016H")
+
                 df = df.Define(
                     "weight_newMuonPrefiringSF_BG",
                     muon_prefiring_helper_BG,

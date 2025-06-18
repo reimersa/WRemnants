@@ -477,6 +477,26 @@ def common_parser(analysis_label=""):
             type=float,
             help="Lower threshold for muon pt in the veto definition",
         )
+        # Options to test splitting of data into subsets
+        parser.add_argument(
+            "--addRunAxis",
+            action="store_true",
+            help="Add axis with slices of luminosity based on run numbers",
+        )
+        parser.add_argument(
+            "--nRunBins",
+            type=int,
+            default=5,
+            choices=range(2, 6),
+            help="""
+            Number of bins to use with --addRunAxis 
+            (hardcoded luminosity splitting inside histmakers)""",
+        )
+        parser.add_argument(
+            "--randomizeDataByRun",
+            action="store_true",
+            help="When adding the run axis with --addRunAxis, randomly put data events into the various bins",
+        )
 
     commonargs, _ = parser.parse_known_args()
 
@@ -710,13 +730,6 @@ def plot_parser():
         action="store_true",
         help="Override use of xrdcp and use the mount instead",
     )
-    ## This option might be defined when we remove the previous one, since eoscp should be true by default
-    # parser.add_argument(
-    #     "--eosMount",
-    #     dest="eoscp",
-    #     action="store_false",
-    #     help="(Deprecated!) Do not use xrdcp to copy to eos, exploit the eos mount when using an eos path for output (without this option the code will create a temporary local folder and then copy plots to eos through xrdcp at the end",
-    # )
     parser.add_argument(
         "--lumi",
         type=float,

@@ -18,12 +18,13 @@ from wremnants import (
     theory_tools,
 )
 from wremnants.datasets.datagroups import Datagroups
-from wremnants.histselections import (
-    FakeSelectorSimpleABCD,
+from wremnants.histselections import FakeSelectorSimpleABCD
+from wremnants.regression import Regressor
+from wremnants.syst_tools import (
+    massWeightNames,
+    scale_hist_up_down,
     scale_hist_up_down_corr_from_file,
 )
-from wremnants.regression import Regressor
-from wremnants.syst_tools import massWeightNames
 from wums import boostHistHelpers as hh
 from wums import logging
 
@@ -1562,23 +1563,6 @@ def setup(
 
     if wmass:
         # mirror hist in linear scale, this was done in the old definition of luminosity uncertainty from a histogram
-        def scale_hist_up_down(h, scale):
-            hUp = hh.scaleHist(h, scale)
-            hDown = hh.scaleHist(h, 1 / scale)
-
-            hVar = hist.Hist(
-                *[a for a in h.axes],
-                common.down_up_axis,
-                storage=hist.storage.Weight(),
-            )
-            hVar.values(flow=True)[...] = np.stack(
-                [hDown.values(flow=True), hUp.values(flow=True)], axis=-1
-            )
-            hVar.variances(flow=True)[...] = np.stack(
-                [hDown.variances(flow=True), hUp.variances(flow=True)], axis=-1
-            )
-            return hVar
-
         if "lumi" in args.decorrSystByRun and "run" in fitvar:
             datagroups.addSystematic(
                 name="lumi",
@@ -2154,6 +2138,7 @@ def setup(
     # implemented by modifying the nominal histogram
     if "run" in fitvar and args.residualEffiSFasUncertainty > 0:
         ## action to apply corrections and move from nominal to alternate histogram in input
+        ## FIXME: put these files in wremnants-data, distinguishing them by era
         corr_input_path = "/scratch/ciprianm/plots/fromMyWremnants/testEfficiencies/efficiencyCorrectionByRun_Wlike/test/"
         preOpCorrAction = scale_hist_up_down_corr_from_file
         preOpCorrActionArgs = dict(
