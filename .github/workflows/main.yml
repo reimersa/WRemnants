@@ -643,7 +643,7 @@ jobs:
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run.sh combinetf2_plot_hists.py --config utilities/styles/styles.py
           $COMBINED_DIR/Combination_WMass_lowPUZMass_lowPU_ptll/fitresults.hdf5 -o $WEB_DIR/$PLOT_DIR/lowPU
-          --rrange 0.0 2.0 --unfoldedXsec --noUncertainty --noChisq --legCols 1 --noSciy --titlePos 0 --title CMS --subtitle Preliminary
+          --rrange 0.0 2.0 --unfoldedXsec --noUncertainty --chisq none --legCols 1 --noSciy --titlePos 0 --title CMS --subtitle Preliminary
 
   wlike:
     # The type of runner that the job will run on
@@ -695,7 +695,7 @@ jobs:
         run: >- 
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run.sh combinetf2_fit.py 
           '$WREMNANTS_OUTDIR/ZMassWLike_eta_pt_charge/ZMassWLike.hdf5'
-          -t 0 --computeHistErrors --saveHists --saveHistsPerProcess --doImpacts --pseudoData uncorr --postfix uncorr
+          -t 0 --unblind 'r:.*' --computeHistErrors --saveHists --saveHistsPerProcess --doImpacts --pseudoData uncorr --postfix uncorr
           -o '$WREMNANTS_OUTDIR/ZMassWLike_eta_pt_charge/'
 
       - name: wlike prefit plot
@@ -867,7 +867,7 @@ jobs:
         run: >-
           scripts/ci/run_with_singularity.sh scripts/ci/setup_and_run.sh combinetf2_fit.py 
           $WREMNANTS_OUTDIR/ZMassDilepton_ptll_yll/ZMassDilepton.hdf5
-          -t 0 --computeHistErrors --saveHists --saveHistsPerProcess --doImpacts
+          -t -1 --computeHistErrors --saveHists --saveHistsPerProcess --doImpacts
           -o '$WREMNANTS_OUTDIR/ZMassDilepton_ptll_yll/'
 
       - name: alphaS impacts
