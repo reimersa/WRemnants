@@ -68,11 +68,6 @@ parser.add_argument(
     help="Apply isolation cut to triggering and not-triggering muon (in this order): -1/1 for failing/passing isolation, 0 for skipping it. If using --useDileptonTriggerSelection, then the sorting is based on the muon charge as -/+",
 )
 parser.add_argument(
-    "--addRunAxis",
-    action="store_true",
-    help="Add axis with slices of luminosity based on run numbers (for data only)",
-)
-parser.add_argument(
     "--flipEventNumberSplitting",
     action="store_true",
     help="Flip even with odd event numbers to consider the positive or negative muon as the W-like muon",
