@@ -2464,16 +2464,6 @@ if __name__ == "__main__":
 
     logger = logging.setup_logger(__file__, args.verbose, args.noColorLogger)
 
-    if args.axlim:
-        if not all(x.real == 0 or x.imag == 0 for x in args.axlim):
-            raise ValueError(
-                "Option --axlim only accepts pure real or imaginary numbers"
-            )
-        if any(x.imag == 0 and (x.real % 1) != 0.0 for x in args.axlim):
-            raise ValueError(
-                "Option --axlim requires real numbers to be of integer type"
-            )
-
     isUnfolding = args.analysisMode == "unfolding"
     isTheoryAgnostic = args.analysisMode in [
         "theoryAgnosticNormVar",
