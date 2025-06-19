@@ -763,7 +763,7 @@ def make_parser(parser=None):
     parser.add_argument(
         "--muRmuFPolVar",
         action="store_true",
-        help="Use polynomial variations (like in theoryAgnosticPolVar) instead of binned variations for muR and muF (of course in setupCombine these are still constrained nuisances)",
+        help="Use polynomial variations (like in theoryAgnosticPolVar) instead of binned variations for muR and muF (of course in setupRabbit these are still constrained nuisances)",
     )
     parser.add_argument(
         "--binByBinStatScaleForMW",
@@ -2419,7 +2419,7 @@ def setup(
                 actionArgs=dict(axesToDecorrNames=["run"], newDecorrAxesNames=["run_"]),
             )
 
-    # Previously we had a QCD uncertainty for the mt dependence on the fakes, see: https://github.com/WMass/WRemnants/blob/f757c2c8137a720403b64d4c83b5463a2b27e80f/scripts/combine/setupCombineWMass.py#L359
+    # Previously we had a QCD uncertainty for the mt dependence on the fakes, see: https://github.com/WMass/WRemnants/blob/f757c2c8137a720403b64d4c83b5463a2b27e80f/scripts/combine/setupRabbitWMass.py#L359
 
     return datagroups
 
