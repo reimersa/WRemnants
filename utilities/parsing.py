@@ -8,6 +8,27 @@ from wums import logging
 choices_padding = ["auto", "lower left", "lower right", "upper left", "upper right"]
 
 
+def str_to_complex_or_int(value):
+    # this function only accepts pure imaginary or pure real (integer) numbers
+    # because it is used for UHI (for instance with options such as --axlim)
+    value = value.strip()
+    if value.endswith("j"):
+        try:
+            complex_value = complex(value)
+        except ValueError:
+            raise argparse.ArgumentTypeError(f"Invalid complex number: '{value}'")
+        if complex_value.real != 0:
+            raise ValueError(
+                f"str_to_complex_or_int: invalid value '{value}', it must be pure imaginary"
+            )
+        return complex_value
+    else:
+        try:
+            return int(value)
+        except ValueError:
+            raise argparse.ArgumentTypeError(f"Invalid integer: '{value}'")
+
+
 def set_parser_attribute(parser, argument, attribute, newValue):
     # change an argument of the parser, must be called before parse_arguments
     logger = logging.child_logger(__name__)

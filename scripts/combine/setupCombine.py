@@ -220,7 +220,7 @@ def make_parser(parser=None):
     )
     parser.add_argument(
         "--axlim",
-        type=complex,
+        type=parsing.str_to_complex_or_int,
         default=[],
         nargs="*",
         help="""
@@ -2138,8 +2138,8 @@ def setup(
     # implemented by modifying the nominal histogram
     if "run" in fitvar and args.residualEffiSFasUncertainty > 0:
         ## action to apply corrections and move from nominal to alternate histogram in input
-        ## FIXME: put these files in wremnants-data, distinguishing them by era
-        corr_input_path = "/scratch/ciprianm/plots/fromMyWremnants/testEfficiencies/efficiencyCorrectionByRun_Wlike/test/"
+        corr_era = "2016" if era == "2016PostVFP" else era
+        corr_input_path = f"{common.data_dir}/muonSF/corrections/{corr_era}/"
         preOpCorrAction = scale_hist_up_down_corr_from_file
         preOpCorrActionArgs = dict(
             corr_file=f"{corr_input_path}/dataMC_ZmumuEffCorr_eta_{args.residualEffiSFasUncertainty}runBins.pkl.lz4",
