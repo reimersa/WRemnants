@@ -8,9 +8,9 @@ from matplotlib.colors import LogNorm
 
 from utilities import common, parsing
 from utilities.styles import styles
-from wremnants import plot_tools, theory_corrections
+from wremnants import theory_corrections
 from wums import boostHistHelpers as hh
-from wums import logging, output_tools
+from wums import logging, output_tools, plot_tools
 
 parser = parsing.plot_parser()
 parser.add_argument(
@@ -54,20 +54,6 @@ parser.add_argument(
     nargs="*",
     default=None,
     help="Which axes to plot, if not specified plot all axes",
-)
-parser.add_argument(
-    "--xlim",
-    type=float,
-    nargs=2,
-    default=[None, None],
-    help="Min and max values for x axis (if not specified, range set automatically)",
-)
-parser.add_argument(
-    "--ylim",
-    type=float,
-    nargs=2,
-    default=[None, None],
-    help="Min and max values for y axis (if not specified, range set automatically)",
 )
 parser.add_argument(
     "--clim",

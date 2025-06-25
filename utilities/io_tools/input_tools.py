@@ -573,6 +573,7 @@ def read_matched_scetlib_nnlojet_hist(
     charge=None,
     zero_nons_bins=0,
     coeff=None,
+    smooth_nnlojet=False,
 ):
     hresum, hfo_sing = read_scetlib_resum_and_fosing(
         scetlib_resum,
@@ -590,7 +591,19 @@ def read_matched_scetlib_nnlojet_hist(
             nnlojet_fo, ybins=hresum.axes["Y"].edges, charge=charge
         )
     else:
-        nnlojeth = read_nnlojet_file(nnlojet_fo, charge=charge)
+        nnlojeth = read_nnlojet_file(nnlojet_fo, axnames=axes, charge=charge)
+
+    if smooth_nnlojet:
+        if "Y" in axes:
+            ax = nnlojeth.axes["Y"]
+            start_bin, end_bin = ax.index((-3.5, 3.5))
+            nnlojeth = hh.smooth_hist(
+                nnlojeth, "Y", exclude_axes=["qT"], start_bin=start_bin, end_bin=end_bin
+            )
+        if "qT" in axes:
+            nnlojeth = hh.smooth_hist(
+                nnlojeth, "qT", start_bin=nnlojeth.axes["qT"].index(5)
+            )
 
     return read_matched_scetlib_hist(hresum, hfo_sing, nnlojeth, zero_nons_bins)
 
@@ -616,7 +629,7 @@ def read_matched_scetlib_hist(
 
     hnonsing = hh.addHists(-1 * hfo_sing, hfo, flow=False, by_ax_name=False)
 
-    if zero_nons_bins is not None:
+    if "qT" in hfo.axes.name and zero_nons_bins is not None:
         slices = tuple(
             zero_nons_bins if ax == "qT" else slice(None) for ax in hnonsing.axes.name
         )
