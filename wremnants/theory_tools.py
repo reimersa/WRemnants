@@ -287,6 +287,60 @@ theory_corr_weight_map = {
     "scetlib_nnlojetN4p0LLN3LO_pdfas": expand_pdf_entries(
         "ct18z", alphas=True, renorm=True
     ),
+    "scetlib_nnlojetN3p1LLN3LOSmoothFO_pdfas": expand_pdf_entries(
+        "ct18z", alphas=True, renorm=True
+    ),
+    "scetlib_nnlojet_N3p1LLN3LOUnsmoothed_N3pLLFixed_pdfas": expand_pdf_entries(
+        "ct18z", alphas=True, renorm=True
+    ),
+    "scetlib_nnlojet_N3p1LLN2LOUnsmoothed_N3pLLFixed_pdfas": expand_pdf_entries(
+        "ct18z", alphas=True, renorm=True
+    ),
+    "scetlib_dyturbo_Wm_N3p1LLN2LOUnsmoothed_pdfas": expand_pdf_entries(
+        "ct18z", alphas=True, renorm=True
+    ),
+    "scetlib_nnlojet_N4p0LLN3LOUnsmoothed_N3pLLFixed_pdfas": expand_pdf_entries(
+        "ct18z", alphas=True, renorm=True
+    ),
+    "scetlib_nnlojet_N4p0LLN3LOSmoothRatio_N3pLLFixed_pdfas": expand_pdf_entries(
+        "ct18z", alphas=True, renorm=True
+    ),
+    "scetlib_dyturbo_N4p0LLN2LOUnsmoothed_N3pLLFixed_pdfas": expand_pdf_entries(
+        "ct18z", alphas=True, renorm=True
+    ),
+    "scetlib_dyturbo_Wm_N4p0LLN2LOUnsmoothed_pdfas": expand_pdf_entries(
+        "ct18z", alphas=True, renorm=True
+    ),
+    "scetlib_nnlojet_N3p0LLN2LOSmoothRatio_pdfas": expand_pdf_entries(
+        "ct18z", alphas=True, renorm=True
+    ),
+    "scetlib_dyturbo_N4p0LLN2LOUnsmoothed_N3pLLFixed_PdfAsFromN4LL_pdfas": expand_pdf_entries(
+        "ct18z", alphas=True, renorm=True
+    ),
+    "scetlib_nnlojet_N4p0LLN3LOUnsmoothed_N3pLLFixed_PdfAsFromN4LL_pdfas": expand_pdf_entries(
+        "ct18z", alphas=True, renorm=True
+    ),
+    "scetlib_dyturbo_N4p0LLN2LOUnsmoothed_N3pLLFixed_PdfAsFromN4LL_ResumSelf_pdfas": expand_pdf_entries(
+        "ct18z", alphas=True, renorm=True
+    ),
+    "scetlib_nnlojet_N4p0LLN3LOUnsmoothed_N3pLLFixed_PdfAsFromN4LL_ResumSelf_pdfas": expand_pdf_entries(
+        "ct18z", alphas=True, renorm=True
+    ),
+    "scetlib_dyturbo_N3p1LLN2LOUnsmoothed_N3pLLFixed_N2p1LLFixed_PdfAsFromN4LL_ResumSelf_pdfas": expand_pdf_entries(
+        "ct18z", alphas=True, renorm=True
+    ),
+    "scetlib_nnlojet_N3p1LLN3LOUnsmoothed_N3pLLFixed_N2p1LLFixed_PdfAsFromN4LL_ResumSelf_pdfas": expand_pdf_entries(
+        "ct18z", alphas=True, renorm=True
+    ),
+    "scetlib_dyturbo_ResumSelf_pdfas": expand_pdf_entries(
+        "ct18z", alphas=True, renorm=True
+    ),
+    "scetlib_dyturbo_NewNPModel_OldValsAndVars_pdfas": expand_pdf_entries(
+        "ct18z", alphas=True, renorm=True
+    ),
+    "scetlib_dyturbo_NewNPModel_LatticeValsAndVars_pdfas": expand_pdf_entries(
+        "ct18z", alphas=True, renorm=True
+    ),
     "scetlib_dyturboMSHT20an3lo_pdfas": expand_pdf_entries("msht20an3lo", alphas=True),
     "scetlib_dyturboMSHT20an3loVars": expand_pdf_entries("msht20an3lo"),
     # Tested this, better not to treat this way unless using MSHT20nnlo as central set
