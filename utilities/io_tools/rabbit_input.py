@@ -29,7 +29,13 @@ def read_groupunc_df(filename, uncs, rename_cols={}, name=None):
         "Nome": poi[0],
         "value": pulls[labels_ung == poi[0]],
         "err_total": impacts[labels == "Total"],
-    }
+    }    
+    
+    if "pTModeling" in uncs and "pTModeling" not in labels:
+        uncs_lookup = [u.replace("pTModeling", "standard_pTModeling") for u in uncs]
+    else:
+        uncs_lookup = uncs
+    info.update({f"err_{unc.replace("standard_pTModeling", "pTModeling")}" if "pTModeling" in uncs and "pTModeling" not in labels else f"err_{unc}": impacts[labels == unc] for unc in uncs_lookup})
     info.update({f"err_{unc}": impacts[labels == unc] for unc in uncs})
 
     df = pd.DataFrame(info)
