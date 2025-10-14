@@ -248,6 +248,7 @@ common_groups = [
     "ZmassAndWidth",
     "massAndWidth",
     "normXsecZ",
+    # "corr_stat",
 ]
 nuisance_grouping = {
     "super": [
@@ -584,14 +585,17 @@ impact_labels = {
     "QCDscaleWinclusive_PtV0_13000helicity_2_SymAvg": "<i>A</i><sub>2</sub> angular coeff., W, inc.",
     "scetlibNPgamma": "SCETLib γ",
     "chargeVgenNP0scetlibNPZLambda2": "SCETLib λ²(Z)",
+    "chargeVgenNP0scetlibNPZlambda2": "SCETLib λ²(Z)",
     "chargeVgenNP1scetlibNPWLambda2": "SCETLib λ²(W⁻)",
     "chargeVgenNP0scetlibNPWLambda2": "SCETLib λ²(W⁺)",
     "chargeVgenNP0scetlibNPWDelta_Lambda2": "SCETLib Δλ²(W⁻)",
     "chargeVgenNP1scetlibNPWDelta_Lambda2": "SCETLib Δλ²(W⁺)",
     "chargeVgenNP0scetlibNPZDelta_Lambda2": "SCETLib Δλ²(Z)",
+    "chargeVgenNP0scetlibNPZdelta_lambda2": "SCETLib Δλ²(Z)",
     "chargeVgenNP0scetlibNPWLambda4": "SCETLib λ⁴(W⁻)",
     "chargeVgenNP1scetlibNPWLambda4": "SCETLib λ⁴(W⁺)",
     "chargeVgenNP0scetlibNPZLambda4": "SCETLib λ⁴(Z)",
+    "chargeVgenNP0scetlibNPZlambda4": "SCETLib λ⁴(Z)",
     "resumTransitionWSymDiff": "resum. transition W [diff.]",
     "resumTransitionZSymDiff": "resum. transition Z [diff.]",
     "resumTransitionZSymAvg": "resum. transition W [avg.]",
