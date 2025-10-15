@@ -26,6 +26,7 @@ class TheoryHelper(object):
         "binned_Omega",
         "tanh2",
         "lattice",
+        "lattice_oldvars",
         "none",
     ]
 
@@ -611,7 +612,7 @@ class TheoryHelper(object):
         var_name = var_name.replace("binned_", "")
         var_name = var_name.replace("_Correlated", "")
 
-        if not any(var_name in x for x in self.np_hist.axes[self.syst_ax]) and not model in ["tanh2", "lattice"]:
+        if not any(var_name in x for x in self.np_hist.axes[self.syst_ax]) and not model in ["tanh2", "lattice", "lattice_oldvars"]:
             raise ValueError(
                 f"NP model choice was '{model}' but did not find corresponding variations in the histogram"
             )
@@ -636,9 +637,26 @@ class TheoryHelper(object):
                 )
             )
     
-            if not all([x in self.corr_hist.axes[self.syst_ax] for x in lattice_vals]):
+            if len(gamma_vals) != 2:
                 raise ValueError(
-                    f"Using the updated tanh2 NP model, failed to find consistent variation for gamma NP in hist {self.corr_hist_name}"
+                    f"Failed to find consistent variation for gamma NP in hist {self.corr_hist_name}"
+                )
+    
+            gamma_nuisance_name = "scetlibNPgamma"
+    
+            var_vals = gamma_vals
+            var_names = [f"{gamma_nuisance_name}Down", f"{gamma_nuisance_name}Up"]
+        elif self.np_model == "lattice_oldvars": # new SCETlib NP model, using lattice central values but old-like variations
+            gamma_vals = list(
+                filter(
+                    lambda x: x in self.corr_hist.axes[self.syst_ax],
+                    ["lambda2_nu-0.413-lambda_inf_nu1.4853", "lambda2_nu0.587-lambda_inf_nu1.8853"],
+                )
+            )
+    
+            if len(gamma_vals) != 2:
+                raise ValueError(
+                    f"Failed to find consistent variation for gamma NP in hist {self.corr_hist_name}"
                 )
     
             gamma_nuisance_name = "scetlibNPgamma"
@@ -775,6 +793,12 @@ class TheoryHelper(object):
                 "delta_lambda2": ["0.105", "0.145"],
                 "lambda4": ["0.01", "0.16"],
             }
+        elif self.np_model == "lattice_oldvars":
+            np_map = {
+                "lambda2": ["0.0", "0.5"],
+                "delta_lambda2": ["0.105", "0.145"],
+                "lambda4": ["1.06"],
+            }
         elif self.np_model == "tanh2":
             np_map = {
                 "lambda2": ["-0.25", "0.25"],
@@ -787,7 +811,7 @@ class TheoryHelper(object):
                 "Delta_Omega": ["-0.02", "0.02"],
             } 
 
-        if "Delta" not in self.np_model and self.np_model not in ["tanh2", "lattice"]:
+        if "Delta" not in self.np_model and self.np_model not in ["tanh2", "lattice", "lattice_oldvars"]:
             to_remove = list(filter(lambda x: "Delta" in x, np_map.keys())) + list(filter(lambda x: "delta" in x, np_map.keys()))
             for k in to_remove:
                 np_map.pop(k)
@@ -799,17 +823,34 @@ class TheoryHelper(object):
             entries = [nuisance + v for v in vals]
             rename = f"scetlibNP{nuisance}"
             # operation = lambda h : h[{self.syst_ax : entries}]
-            self.datagroups.addSystematic(
-                self.corr_hist_name,
-                processes=["single_v_samples"],
-                groups=["resumNonpert", "resum", "pTModeling", "theory", "theory_qcd"],
-                systAxes=[self.syst_ax],
-                passToFakes=self.propagate_to_fakes,
-                preOp=operation,
-                preOpArgs=dict(entries=entries),
-                outNames=[f"{rename}Down", f"{rename}Up"],
-                name=rename,
-            )
+            if self.np_model == "lattice_oldvars" and nuisance == "lambda4":
+
+                print("in correlated case for lambda4")
+                # lambda4 variation is one-sided in this model, symmetrize by mirroring it
+                self.datagroups.addSystematic(
+                    self.corr_hist_name,
+                    processes=["single_v_samples"],
+                    groups=["resumNonpert", "resum", "pTModeling", "theory", "theory_qcd"],
+                    systAxes=[self.syst_ax],
+                    passToFakes=self.propagate_to_fakes,
+                    preOp=operation,
+                    preOpArgs=dict(entries=entries),
+                    outNames=[rename],
+                    mirror=True,
+                    name=rename,
+                )
+            else:
+                self.datagroups.addSystematic(
+                    self.corr_hist_name,
+                    processes=["single_v_samples"],
+                    groups=["resumNonpert", "resum", "pTModeling", "theory", "theory_qcd"],
+                    systAxes=[self.syst_ax],
+                    passToFakes=self.propagate_to_fakes,
+                    preOp=operation,
+                    preOpArgs=dict(entries=entries),
+                    outNames=[f"{rename}Down", f"{rename}Up"],
+                    name=rename,
+                )
 
     def add_uncorrelated_np_uncertainties(self):
         if "Lambda" in self.np_model:
@@ -830,6 +871,12 @@ class TheoryHelper(object):
                 "delta_lambda2": ["0.105", "0.145"],
                 "lambda4": ["0.01", "0.16"],
             }
+        elif self.np_model == "lattice_oldvars":
+            np_map = {
+                "lambda2": ["0.0", "0.5"],
+                "delta_lambda2": ["0.105", "0.145"],
+                "lambda4": ["1.06"],
+            }
         elif self.np_model == "tanh2":
             np_map = {
                 "lambda2": ["-0.25", "0.25"],
@@ -842,14 +889,14 @@ class TheoryHelper(object):
                 "Delta_Omega": ["-0.02", "0.02"],
             }
 
-        if "Delta" not in self.np_model and self.np_model not in ["tanh2", "lattice"]:
+        if "Delta" not in self.np_model and self.np_model not in ["tanh2", "lattice", "lattice_oldvars"]:
             to_remove = list(filter(lambda x: "Delta" in x, np_map.keys())) + list(filter(lambda x: "delta" in x, np_map.keys()))
             for k in to_remove:
                 np_map.pop(k)
 
         for label, vals in np_map.items():
             if not all(label + v in self.np_hist.axes[self.syst_ax] for v in vals):
-                if self.np_model == "lattice":
+                if self.np_model in ["lattice", "lattice_oldvars"]:
                     continue
                 tmpvals = [
                     x.replace(label, "")
@@ -886,28 +933,40 @@ class TheoryHelper(object):
             for nuisance, vals in np_map.items():
                 entries = [nuisance + v for v in vals]
                 rename = f"scetlibNP{label}{nuisance}"
-                self.datagroups.addSystematic(
-                    self.np_hist_name,
-                    processes=[sample_group],
-                    groups=[
-                        "resumNonpert",
-                        "resum",
-                        "pTModeling",
-                        "theory",
-                        "theory_qcd",
-                    ],
-                    systAxes=syst_axes,
-                    passToFakes=self.propagate_to_fakes,
-                    preOp=operation,
-                    preOpArgs={"entries": entries},
-                    # outNames=[f"{rename}Down", f"{rename}Up"] if not binned else None,
-                    systNameReplace=[
-                        (entries[1], f"{rename}Up"),
-                        (entries[0], f"{rename}Down"),
-                    ],
-                    skipEntries=[{self.syst_ax: ["central", "pdf0"]}],
-                    name=rename,
-                )
+                if self.np_model == "lattice_oldvars" and nuisance == "lambda4":
+                    print("in uncorrelated case for lambda4")
+                    print(entries)
+                    # lambda4 variation is one-sided in this model, symmetrize by mirroring it
+                    self.datagroups.addSystematic(
+                        self.np_hist_name,
+                        processes=[sample_group],
+                        groups=["resumNonpert", "resum", "pTModeling", "theory", "theory_qcd"],
+                        systAxes=syst_axes,
+                        passToFakes=self.propagate_to_fakes,
+                        preOp=operation,
+                        preOpArgs={"entries": entries},
+                        systNameReplace=[(entries[0], f"{rename}")],
+                        mirror=True,
+                        skipEntries=[{self.syst_ax: ["central", "pdf0"]}],
+                        name=rename,
+                    )
+                else:
+                    self.datagroups.addSystematic(
+                        self.np_hist_name,
+                        processes=[sample_group],
+                        groups=["resumNonpert", "resum", "pTModeling", "theory", "theory_qcd"],
+                        systAxes=syst_axes,
+                        passToFakes=self.propagate_to_fakes,
+                        preOp=operation,
+                        preOpArgs={"entries": entries},
+                        # outNames=[f"{rename}Down", f"{rename}Up"] if not binned else None,
+                        systNameReplace=[
+                            (entries[1], f"{rename}Up"),
+                            (entries[0], f"{rename}Down"),
+                        ],
+                        skipEntries=[{self.syst_ax: ["central", "pdf0"]}],
+                        name=rename,
+                    )
 
     def add_pdf_uncertainty(self, operation=None, scale=-1.0, from_hels=False):
         pdf = self.datagroups.args_from_metadata("pdfs")[0]
