@@ -797,7 +797,7 @@ class TheoryHelper(object):
             np_map = {
                 "lambda2": ["0.0", "0.5"],
                 "delta_lambda2": ["0.105", "0.145"],
-                "lambda4": ["1.06"],
+                "lambda4": ["0.56"],
             }
         elif self.np_model == "tanh2":
             np_map = {
@@ -836,10 +836,17 @@ class TheoryHelper(object):
                     preOp=operation,
                     preOpArgs=dict(entries=entries),
                     outNames=[rename],
+                    scale=0.6,
                     mirror=True,
                     name=rename,
                 )
             else:
+                scale = 1.0
+                if self.np_model == "lattice_oldvars":
+                    if nuisance == "lambda2":
+                        scale = 1.5
+                    elif nuisance == "delta_lambda2":
+                        scale = 1.8
                 self.datagroups.addSystematic(
                     self.corr_hist_name,
                     processes=["single_v_samples"],
@@ -849,6 +856,7 @@ class TheoryHelper(object):
                     preOp=operation,
                     preOpArgs=dict(entries=entries),
                     outNames=[f"{rename}Down", f"{rename}Up"],
+                    scale=scale,
                     name=rename,
                 )
 
@@ -875,7 +883,7 @@ class TheoryHelper(object):
             np_map = {
                 "lambda2": ["0.0", "0.5"],
                 "delta_lambda2": ["0.105", "0.145"],
-                "lambda4": ["1.06"],
+                "lambda4": ["0.56"],
             }
         elif self.np_model == "tanh2":
             np_map = {
@@ -947,10 +955,18 @@ class TheoryHelper(object):
                         preOpArgs={"entries": entries},
                         systNameReplace=[(entries[0], f"{rename}")],
                         mirror=True,
+                        scale=0.8,
                         skipEntries=[{self.syst_ax: ["central", "pdf0"]}],
                         name=rename,
                     )
                 else:
+
+                    scale = 1.0
+                    if self.np_model == "lattice_oldvars":
+                        if nuisance == "lambda2":
+                            scale = 1.3
+                        elif nuisance == "delta_lambda2":
+                            scale = 1.5
                     self.datagroups.addSystematic(
                         self.np_hist_name,
                         processes=[sample_group],
@@ -965,6 +981,7 @@ class TheoryHelper(object):
                             (entries[0], f"{rename}Down"),
                         ],
                         skipEntries=[{self.syst_ax: ["central", "pdf0"]}],
+                        scale=scale,
                         name=rename,
                     )
 
