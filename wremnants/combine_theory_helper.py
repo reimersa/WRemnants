@@ -26,6 +26,7 @@ class TheoryHelper(object):
         "binned_Omega",
         "tanh2",
         "lattice",
+        "lattice_oldvars_singlegammavars",
         "lattice_oldvars",
         "none",
     ]
@@ -612,7 +613,7 @@ class TheoryHelper(object):
         var_name = var_name.replace("binned_", "")
         var_name = var_name.replace("_Correlated", "")
 
-        if not any(var_name in x for x in self.np_hist.axes[self.syst_ax]) and not model in ["tanh2", "lattice", "lattice_oldvars"]:
+        if not any(var_name in x for x in self.np_hist.axes[self.syst_ax]) and not model in ["tanh2", "lattice", "lattice_oldvars", "lattice_oldvars_singlegammavars"]:
             raise ValueError(
                 f"NP model choice was '{model}' but did not find corresponding variations in the histogram"
             )
@@ -629,6 +630,17 @@ class TheoryHelper(object):
             gamma_nuisance_names = ["scetlibNPgammaEigvar1", "scetlibNPgammaEigvar2", "scetlibNPgammaEigvar3"]
             var_names = [f"{name}{direction}" for name in gamma_nuisance_names for direction in ["Up", "Down"]]
             var_vals = lattice_vals
+        elif self.np_model == "lattice_oldvars_singlegammavars": # new SCETlib NP model, using lattice values and constraints
+            # These are the lattice eigenvars for gamma NP uncertainties
+            # lattice_singlevars_vals = ["lambda2_nu0.0538", "lambda2_nu0.1202", "lambda4_nu0.0008", "lambda4_nu0.014", "lambda_inf_nu1.1784", "lambda_inf_nu2.1922"]
+            lattice_singlevars_vals = ["lambda2_nu0.0538", "lambda2_nu0.1202"]
+            if not all([x in self.corr_hist.axes[self.syst_ax] for x in lattice_singlevars_vals]):
+                raise ValueError(f"Using the lattice NP model with individual gamma variations (instead of eigenvariations), but could not find the variations for the 3 gamma parameters in hist {self.corr_hist_name}")
+
+            # gamma_nuisance_names = ["scetlibNPgammalambda2nu", "scetlibNPgammalambda4nu", "scetlibNPgammalambdainfnu"]
+            gamma_nuisance_names = ["scetlibNPgammalambda2nu"]
+            var_names = [f"{name}{direction}" for name in gamma_nuisance_names for direction in ["Up", "Down"]]
+            var_vals = lattice_singlevars_vals
         elif self.np_model == "tanh2": # new SCETlib NP model, using old values and old-like variations
             gamma_vals = list(
                 filter(
@@ -689,6 +701,9 @@ class TheoryHelper(object):
         processesW = ["single_v_samples"]
         processes = processesW if self.label == "W" else processesZ
 
+        scale = 1.0
+        if self.np_model == "lattice_oldvars_singlegammavars":
+            scale = 20.
         self.datagroups.addSystematic(
             self.corr_hist_name,
             processes=processes,
@@ -698,6 +713,7 @@ class TheoryHelper(object):
             outNames=var_names,
             groups=["resumNonpert", "resum", "pTModeling", "theory", "theory_qcd"],
             name="scetlibNP",
+            scale=scale,
         )
 
     def add_resum_scale_uncertainty(self, name_append):
@@ -793,6 +809,12 @@ class TheoryHelper(object):
                 "delta_lambda2": ["0.105", "0.145"],
                 "lambda4": ["0.01", "0.16"],
             }
+        elif self.np_model == "lattice_oldvars_singlegammavars":
+            np_map = {
+                "lambda2": ["0.0", "0.5"],
+                "delta_lambda2": ["0.105", "0.145"],
+                "lambda4": ["0.16"],
+            }
         elif self.np_model == "lattice_oldvars":
             np_map = {
                 "lambda2": ["0.0", "0.5"],
@@ -811,7 +833,7 @@ class TheoryHelper(object):
                 "Delta_Omega": ["-0.02", "0.02"],
             } 
 
-        if "Delta" not in self.np_model and self.np_model not in ["tanh2", "lattice", "lattice_oldvars"]:
+        if "Delta" not in self.np_model and self.np_model not in ["tanh2", "lattice", "lattice_oldvars", "lattice_oldvars_singlegammavars"]:
             to_remove = list(filter(lambda x: "Delta" in x, np_map.keys())) + list(filter(lambda x: "delta" in x, np_map.keys()))
             for k in to_remove:
                 np_map.pop(k)
@@ -840,9 +862,25 @@ class TheoryHelper(object):
                     mirror=True,
                     name=rename,
                 )
+            elif self.np_model == "lattice_oldvars_singlegammavars" and nuisance == "lambda4":
+                print("in correlated case for lambda4")
+                # lambda4 variation is one-sided in this model, symmetrize by mirroring it
+                self.datagroups.addSystematic(
+                    self.corr_hist_name,
+                    processes=["single_v_samples"],
+                    groups=["resumNonpert", "resum", "pTModeling", "theory", "theory_qcd"],
+                    systAxes=[self.syst_ax],
+                    passToFakes=self.propagate_to_fakes,
+                    preOp=operation,
+                    preOpArgs=dict(entries=entries),
+                    outNames=[rename],
+                    scale=3.5,
+                    mirror=True,
+                    name=rename,
+                )
             else:
                 scale = 1.0
-                if self.np_model == "lattice_oldvars":
+                if self.np_model in ["lattice_oldvars", "lattice_oldvars_singlegammavars"]:
                     if nuisance == "lambda2":
                         scale = 1.5
                     elif nuisance == "delta_lambda2":
@@ -879,6 +917,12 @@ class TheoryHelper(object):
                 "delta_lambda2": ["0.105", "0.145"],
                 "lambda4": ["0.01", "0.16"],
             }
+        elif self.np_model == "lattice_oldvars_singlegammavars":
+            np_map = {
+                "lambda2": ["0.0", "0.5"],
+                "delta_lambda2": ["0.105", "0.145"],
+                "lambda4": ["0.16"],
+            }
         elif self.np_model == "lattice_oldvars":
             np_map = {
                 "lambda2": ["0.0", "0.5"],
@@ -897,14 +941,14 @@ class TheoryHelper(object):
                 "Delta_Omega": ["-0.02", "0.02"],
             }
 
-        if "Delta" not in self.np_model and self.np_model not in ["tanh2", "lattice", "lattice_oldvars"]:
+        if "Delta" not in self.np_model and self.np_model not in ["tanh2", "lattice", "lattice_oldvars", "lattice_oldvars_singlegammavars"]:
             to_remove = list(filter(lambda x: "Delta" in x, np_map.keys())) + list(filter(lambda x: "delta" in x, np_map.keys()))
             for k in to_remove:
                 np_map.pop(k)
 
         for label, vals in np_map.items():
             if not all(label + v in self.np_hist.axes[self.syst_ax] for v in vals):
-                if self.np_model in ["lattice", "lattice_oldvars"]:
+                if self.np_model in ["lattice", "lattice_oldvars", "lattice_oldvars_singlegammavars"]:
                     continue
                 tmpvals = [
                     x.replace(label, "")
@@ -959,10 +1003,28 @@ class TheoryHelper(object):
                         skipEntries=[{self.syst_ax: ["central", "pdf0"]}],
                         name=rename,
                     )
-                else:
+                elif self.np_model == "lattice_oldvars_singlegammavars" and nuisance == "lambda4":
+                    print("in uncorrelated case for lambda4")
+                    print(entries)
+                    # lambda4 variation is one-sided in this model, symmetrize by mirroring it
+                    self.datagroups.addSystematic(
+                        self.np_hist_name,
+                        processes=[sample_group],
+                        groups=["resumNonpert", "resum", "pTModeling", "theory", "theory_qcd"],
+                        systAxes=syst_axes,
+                        passToFakes=self.propagate_to_fakes,
+                        preOp=operation,
+                        preOpArgs={"entries": entries},
+                        systNameReplace=[(entries[0], f"{rename}")],
+                        mirror=True,
+                        scale=3.,
+                        skipEntries=[{self.syst_ax: ["central", "pdf0"]}],
+                        name=rename,
+                    )
 
+                else:
                     scale = 1.0
-                    if self.np_model == "lattice_oldvars":
+                    if self.np_model in ["lattice_oldvars", "lattice_oldvars_singlegammavars"]:
                         if nuisance == "lambda2":
                             scale = 1.3
                         elif nuisance == "delta_lambda2":
